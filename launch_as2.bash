@@ -4,7 +4,7 @@ usage() {
     echo "  options:"
     echo "      -n: select drone namespace to launch. Default is 'drone0'"
     echo "      -c: motion controller plugin (pid_speed_controller, differential_flatness_controller), choices: [pid, df]. Default: pid"
-    echo "      -x: launch micro_xrce_agent for real flights. Default not launch"
+    echo "      -x: launch Micro XRCE-DDS Agent on UDP port 8888 for SITL. Default not launch"
     echo "      -r: record rosbag. Default not launch"
     echo "      -g: launch using gnome-terminal instead of tmux. Default not set"
 }

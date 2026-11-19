@@ -22,8 +22,7 @@ windows:
       panes:
       # Platform
       <% if micro_xrce_agent %>
-        # - MicroXRCEAgent udp4 -p 8888
-        - MicroXRCEAgent serial -b 921600 --dev /dev/ttyUSB0
+        - MicroXRCEAgent udp4 -p 8888
       <% end %>
         - AEROSTACK2_SIMULATION_DRONE_ID=<%= drone_namespace %> ros2 launch as2_platform_pixhawk pixhawk_launch.py
             

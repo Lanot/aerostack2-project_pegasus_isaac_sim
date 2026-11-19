@@ -8,6 +8,113 @@ https://github.com/user-attachments/assets/dde015c6-1d9d-4e26-9ad8-0b7a1ecae015
 
 Credits to https://github.com/gdaudt, as the creator of the indoor ship environment shown in this video.
 
+## Isaac Sim 6.x (Ubuntu 24.04 / ROS 2 Jazzy)
+
+The two standalone entrypoints now target the `dev_6.0.1_custom` Pegasus port.
+They use `PegasusInterface.initialize_world()`, Kit updates and timeline callbacks;
+there is no dependency on the removed `omni.isaac.core.World` API. Enablement of
+Pegasus and the ROS bridge is explicit, so no saved Isaac Sim GUI settings are needed.
+The Python module is shared by both scripts; the following variant tracks the live
+Pegasus physics state rather than potentially stale USD transforms.
+
+Prerequisites:
+
+- Isaac Sim 6.0.1 with a working NVIDIA driver.
+- The migrated Pegasus checkout at `~/sim/IsaacSim-Extensions/PegasusSimulator`.
+  The project does not patch or modify that installation.
+- Built PX4 SITL at `~/sim/PX4-Autopilot` (the binary is checked before starting Kit).
+- ROS 2 Jazzy, built Aerostack2, `as2_platform_pixhawk` and `px4_msgs` matching
+  the PX4 firmware's DDS message definitions. These are separate installations;
+  this example does not install them or change the PX4 checkout.
+- Micro XRCE-DDS Agent compatible with that PX4 firmware, plus tmux/tmuxinator
+  when using the AS2 launcher. The historical v1.14 instructions below are not a
+  recommendation to use v1.14 message definitions with newer firmware.
+
+Start the simulator (Pegasus autostarts PX4; do not also run `launch_sitl.bash`):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd ~/workspaces/aerostack2_ws/src/project_pegasus_isaac_sim
+bash launch_isaacsim.bash
+```
+
+Use a custom world and spawn position, optionally with the following camera:
+
+```bash
+bash launch_isaacsim.bash --follow-camera \
+  --world-usd /absolute/path/to/world.usda --position 0 12.5 155
+```
+
+The former machine-specific ship-world path is no longer used. Custom worlds
+are opened as stages, preserving their root settings; Z-up and meter units are
+required. Without `--world-usd`, the default is Warehouse with Shelves.
+Use `--environment none` for an empty stage or a named Pegasus environment.
+
+Optional installation overrides:
+
+```bash
+export ISAACSIM_PATH="$HOME/sim/IsaacSim-6.0.1"
+export PEGASUS_SIMULATOR_DIR="$HOME/sim/IsaacSim-Extensions/PegasusSimulator"
+export PX4_DIR="$HOME/sim/PX4-Autopilot"
+```
+
+All options: `python3 drone_camera_lidar_isaac_sim.py --help` (does not start Kit).
+Both scripts also accept the existing `--px4_dir` argument.
+
+In a second terminal, source your built AS2 and Pixhawk platform workspaces, then:
+
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/workspaces/aerostack2_ws/install/setup.bash
+# Source a separate as2_platform_pixhawk workspace here if applicable.
+cd ~/workspaces/aerostack2_ws/src/project_pegasus_isaac_sim
+bash launch_as2.bash -n drone1 -x
+```
+
+`-x` now runs `MicroXRCEAgent udp4 -p 8888`, rather than opening a physical
+serial device. Alternatively run that command manually and omit `-x`.
+The simulator defaults to PX4 instance 0 (MAVLink system ID 1), DDS namespace
+`drone1`, and ROS sensor namespace `/drone1`, matching the existing AS2 `drone1`
+configuration (`fmu_prefix: /drone1`, `target_system_id: 1`).
+`--vehicle-id` selects the PX4 instance, while `--ros-vehicle-id`, `--namespace`
+and `--px4-dds-namespace` configure the two namespaces independently.
+For externally started SITL, use `--no-px4-autolaunch` and set its DDS namespace
+in that process; `--no-px4` removes the MAVLink backend entirely.
+
+The ROS bridge publishes `/clock`. Configure `use_sim_time:=true` on AS2 nodes
+that should follow simulation time. Camera frequency now uses the actual Pegasus
+`frequency` option. LiDAR creation uses the Isaac Sim 6 experimental RTX API,
+while Pegasus retains sensor scheduling. Project-local ROS helper graphs publish
+RGB, depth, camera info, point clouds and laser scans using the current bridge
+API, avoiding the legacy backend's CameraInfo list/reshape incompatibility.
+
+Bounded runtime checks (run on a machine with a working GPU):
+
+```bash
+# Physics only; no PX4/ROS/sensor dependency or remote environment asset.
+bash launch_isaacsim.bash --headless --environment none \
+  --no-px4 --no-ros2 --no-camera --no-lidar --max-steps 120
+
+# Camera and RTX LiDAR with ROS publishers, without PX4.
+bash launch_isaacsim.bash --headless --environment 'Box Room' \
+  --no-px4 --max-steps 600
+```
+
+In the second check, inspect `ros2 topic list` for `/clock`,
+`/drone1/camera/color/image_raw` and `/drone1/lidar/pointcloud`.
+A `PEGASUS_RUN_COMPLETE` marker means the requested update loop completed; it
+is not a takeoff, telemetry, or sensor-content validation. Startup errors propagate
+with a nonzero exit status and Kit is closed in a `finally` block.
+
+Validation of this migration was limited to offline API checks, syntax checks and
+mocked lifecycle regression checks against the installed 6.0.1 source. Rendering,
+sensor contents, PX4 DDS telemetry and AS2 flight still need a working GPU session.
+
+## Legacy installation reference (Isaac Sim 4.2 / Humble)
+
+The remaining instructions below describe the original upstream setup. Use the
+6.x instructions above with the migrated entrypoints.
+
 ## Installation
 
 This project has been tested in Ubuntu 22.04, Isaac Sim 4.2.0 and ROS 2 (Humble). It is recommended to have an Nvidia GPU with CUDA enabled capabilities and enough VRAM (tested on Nvidia RTX4090).
