@@ -25,6 +25,8 @@ windows:
         - MicroXRCEAgent udp4 -p 8888
       <% end %>
         - AEROSTACK2_SIMULATION_DRONE_ID=<%= drone_namespace %> ros2 launch as2_platform_pixhawk pixhawk_launch.py
+            namespace:=<%= drone_namespace %>
+            platform_config_file:=config/config.yaml
             
 
 
