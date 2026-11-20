@@ -13,10 +13,11 @@ from pathlib import Path
 
 def parse_arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
+
     parser.add_argument('--px4_dir', '--px4-dir', dest='px4_dir',
-                        default=os.environ.get('PX4_DIR', '~/sim/PX4-Autopilot'))
+                        default=os.environ.get('PX4_DIR', '~/PX4-Autopilot'))
     parser.add_argument('--pegasus-dir', default=os.environ.get(
-        'PEGASUS_SIMULATOR_DIR', '~/sim/IsaacSim-Extensions/PegasusSimulator'))
+        'PEGASUS_SIMULATOR_DIR', '~/IsaacSim-Extensions/PegasusSimulator'))
     parser.add_argument('--world-usd', help='Custom USD stage, opened before spawning the drone')
     parser.add_argument('--environment', default='Warehouse with Shelves',
                         help='Pegasus environment name, or none for an empty stage')
@@ -39,28 +40,36 @@ def parse_arguments(argv=None):
     parser.add_argument('--headless', action='store_true')
     parser.add_argument('--max-steps', type=int, default=0,
                         help='Exit after this many app updates (0: run until closed)')
+
     args = parser.parse_args(argv)
+
     if args.vehicle_id < 0 or args.ros_vehicle_id < 0 or args.max_steps < 0:
         parser.error('vehicle IDs and max-steps must be nonnegative')
     args.pegasus_dir = Path(args.pegasus_dir).expanduser().resolve()
+
     if not (args.pegasus_dir / 'extensions/pegasus.simulator/config/extension.toml').is_file():
         parser.error(f'Pegasus extension not found under {args.pegasus_dir}/extensions')
     args.px4_dir = Path(args.px4_dir).expanduser().resolve()
+
     if not args.no_px4 and not args.no_px4_autolaunch:
         binary = args.px4_dir / 'build/px4_sitl_default/bin/px4'
         if not binary.is_file():
             parser.error(f'Build PX4 SITL first: missing {binary}')
+
     if args.world_usd and '://' not in args.world_usd:
         args.world_usd = str(Path(args.world_usd).expanduser().resolve())
         if not Path(args.world_usd).is_file():
             parser.error(f'World USD not found: {args.world_usd}')
+
     return args
 
 
 def create_clock():
     """Publish simulation time for the AS2 nodes configured with use_sim_time."""
     import omni.graph.core as og
+
     keys = og.Controller.Keys
+
     return og.Controller.edit(
         {'graph_path': '/World/ROS2Clock', 'evaluator_name': 'execution'},
         {
@@ -84,12 +93,16 @@ class FollowCamera:
     def __init__(self, drone, headless):
         import omni.usd
         from pxr import UsdGeom
+
         self.drone = drone
+
         camera = UsdGeom.Camera.Define(omni.usd.get_context().get_stage(), '/World/SimpleFollowCamera')
         camera.GetFocalLengthAttr().Set(30.0)
         camera.GetHorizontalApertureAttr().Set(36.0)
         camera.GetVerticalApertureAttr().Set(24.0)
+
         self.transform = UsdGeom.Xformable(camera.GetPrim()).AddTransformOp()
+
         if not headless:
             from omni.kit.viewport.utility import get_active_viewport
             viewport = get_active_viewport()
@@ -135,6 +148,7 @@ def build_scene(app, args, following=False):
 
     pg = PegasusInterface()
     pg.initialize_world()
+
     if not args.world_usd and args.environment.lower() != 'none':
         if args.environment not in SIMULATION_ENVIRONMENTS:
             raise ValueError(f'Unknown environment {args.environment!r}; '
@@ -146,6 +160,7 @@ def build_scene(app, args, following=False):
 
     config = MultirotorConfig()
     config.backends = []
+
     if not args.no_px4:
         from pegasus.simulator.logic.backends.px4_mavlink_backend import (
             PX4MavlinkBackend, PX4MavlinkBackendConfig,
@@ -156,8 +171,9 @@ def build_scene(app, args, following=False):
             'px4_dir': str(args.px4_dir),
             'px4_vehicle_model': args.px4_model,
         })))
+
     if not args.no_ros2:
-        from project_pegasus_isaac_sim.scripts.isaacsim6_ros2 import IsaacSim6ROS2Backend
+        from isaacsim6_ros2 import IsaacSim6ROS2Backend
         config.backends.append(IsaacSim6ROS2Backend(vehicle_id=args.ros_vehicle_id, config={
             'namespace': args.namespace, 'pub_sensors': following,
             'pub_graphical_sensors': True, 'pub_state': False, 'sub_control': False,
@@ -181,6 +197,7 @@ def build_scene(app, args, following=False):
                 ]),
             })
         config.graphical_sensors.append(MonocularCamera('camera', config=camera_config))
+
     if not args.no_lidar:
         from pegasus.simulator.logic.graphical_sensors.lidar import Lidar as PegasusLidar
         from pegasus.simulator.logic.graphical_sensors import GraphicalSensor
@@ -210,11 +227,13 @@ def build_scene(app, args, following=False):
     drone = Multirotor('/World/quadrotor', ROBOTS['Iris'], args.vehicle_id,
                        args.position, [0.0, 0.0, 0.0, 1.0], config=config)
     follow_camera = FollowCamera(drone, args.headless) if following else None
+
     return drone, follow_camera
 
 
 def main(argv=None, following=False):
     args = parse_arguments(argv)
+
     # PX4's rcS reads this when Pegasus autostarts SITL. No separate SITL launch needed.
     if not args.no_px4 and not args.no_px4_autolaunch:
         os.environ['PX4_UXRCE_DDS_NS'] = args.px4_dds_namespace
@@ -224,9 +243,11 @@ def main(argv=None, following=False):
         'extra_args': ['--ext-folder', str(args.pegasus_dir / 'extensions')],
     })
     timeline = None
+
     try:
         import omni.kit.app
         import omni.timeline
+
         manager = omni.kit.app.get_app().get_extension_manager()
         extensions = ['pegasus.simulator']
         if not args.no_camera:
@@ -239,17 +260,21 @@ def main(argv=None, following=False):
             manager.set_extension_enabled_immediate(extension, True)
             if not manager.is_extension_enabled(extension):
                 raise RuntimeError(f'Could not enable {extension}')
+
         app.update()
+
         timeline = omni.timeline.get_timeline_interface()
         drone, follow_camera = build_scene(app, args, following=following)
         timeline.play()
         steps = 0
+
         while app.is_running() and (not args.max_steps or steps < args.max_steps):
             app.update()
             if follow_camera is not None:
                 follow_camera.update()
             steps += 1
         print(f'PEGASUS_RUN_COMPLETE steps={steps}', flush=True)
+
     finally:
         try:
             if timeline is not None:

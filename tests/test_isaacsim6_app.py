@@ -7,7 +7,7 @@ import types
 import unittest
 from unittest.mock import MagicMock, patch
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[1] / 'scripts'
 spec = importlib.util.spec_from_file_location('isaacsim6_app', ROOT / 'isaacsim6_app.py')
 launcher = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(launcher)

@@ -6,7 +6,7 @@ import types
 import unittest
 from unittest.mock import MagicMock, patch
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[1] / 'scripts'
 
 
 class SensorGraphTests(unittest.TestCase):

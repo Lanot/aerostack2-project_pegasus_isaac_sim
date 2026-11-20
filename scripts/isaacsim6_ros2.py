@@ -20,9 +20,11 @@ class IsaacSim6ROS2Backend(ROS2Backend):
         nodes = [('Tick', 'omni.graph.action.OnPlaybackTick')]
         connections = []
         values = []
+
         for node, node_type, topic, output_type in helpers:
             nodes.append((node, 'isaacsim.ros2.bridge.' + node_type))
             connections.append(('Tick.outputs:tick', node + '.inputs:execIn'))
+
             values.extend([
                 (node + '.inputs:renderProductPath', render_product),
                 (node + '.inputs:nodeNamespace', self._namespace + str(self._id)),
@@ -30,8 +32,10 @@ class IsaacSim6ROS2Backend(ROS2Backend):
                 (node + '.inputs:topicName', topic),
                 (node + '.inputs:useSystemTime', False),
             ])
+
             if output_type is not None:
                 values.append((node + '.inputs:type', output_type))
+
         return og.Controller.edit(
             {'graph_path': data['stage_prim_path'] + '/ROS2Publish',
              'evaluator_name': 'execution'},
@@ -44,17 +48,22 @@ class IsaacSim6ROS2Backend(ROS2Backend):
             ('RGB', 'ROS2CameraHelper', name + '/color/image_raw', 'rgb'),
             ('Info', 'ROS2CameraInfoHelper', name + '/color/camera_info', None),
         ]
+
         if data.get('depth', False):
             helpers.append(('Depth', 'ROS2CameraHelper', name + '/depth', 'depth'))
+
         graph = self._sensor_graph(data, name, data['camera']._render_product_path, helpers)
+
         self.graphical_sensors_writers[name] = [graph]
 
     def add_lidar_writter(self, data):
         name = data['lidar_name']
         product = rep.create.render_product(data['stage_prim_path'], (1, 1), name=name)
+
         graph = self._sensor_graph(data, name, product.path, [
             ('Points', 'ROS2RtxLidarHelper', name + '/pointcloud', 'point_cloud'),
             ('Scan', 'ROS2RtxLidarHelper', name + '/laserscan', 'laser_scan'),
         ])
+
         # Retain the render product for the lifetime of the backend.
         self.graphical_sensors_writers[name] = [graph, product]
