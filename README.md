@@ -285,7 +285,7 @@ There are several missions that can be executed:
 
 - **AS2 keyboard teleoperation control**: You can use the keyboard teleoperation launched with the ground station, using the flag `-t`:
   ```bash
-  ./launch_ground_station.bash -t
+  ./launch_ground_station.bash -n drone1 -t
   ```
 - **AS2 Python API single drone mission**: You can execute a mission that used AS2 Python API, launching the mission with:
   ```bash
