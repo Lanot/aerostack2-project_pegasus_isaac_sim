@@ -38,6 +38,12 @@ cd ~/workspaces/aerostack2_ws/src/project_pegasus_isaac_sim
 bash launch_isaacsim.bash
 ```
 
+Use spawn position, optionally with the following camera:
+
+```bash
+bash launch_isaacsim.bash --follow-camera --position 3 0 0.07
+```
+
 Use a custom world and spawn position, optionally with the following camera:
 
 ```bash
