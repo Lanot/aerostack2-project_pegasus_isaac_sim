@@ -157,7 +157,7 @@ def build_scene(app, args, following=False):
             'px4_vehicle_model': args.px4_model,
         })))
     if not args.no_ros2:
-        from isaacsim6_ros2 import IsaacSim6ROS2Backend
+        from project_pegasus_isaac_sim.scripts.isaacsim6_ros2 import IsaacSim6ROS2Backend
         config.backends.append(IsaacSim6ROS2Backend(vehicle_id=args.ros_vehicle_id, config={
             'namespace': args.namespace, 'pub_sensors': following,
             'pub_graphical_sensors': True, 'pub_state': False, 'sub_control': False,

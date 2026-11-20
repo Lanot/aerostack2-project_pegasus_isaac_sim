@@ -8,7 +8,7 @@ https://github.com/user-attachments/assets/dde015c6-1d9d-4e26-9ad8-0b7a1ecae015
 
 Credits to https://github.com/gdaudt, as the creator of the indoor ship environment shown in this video.
 
-## Isaac Sim 6.x (Ubuntu 24.04 / ROS 2 Jazzy)
+## CUSTOM Isaac Sim 6.x (Ubuntu 24.04 / ROS 2 Jazzy)
 
 The two standalone entrypoints now target the `dev_6.0.1_custom` Pegasus port.
 They use `PegasusInterface.initialize_world()`, Kit updates and timeline callbacks;
@@ -20,9 +20,9 @@ Pegasus physics state rather than potentially stale USD transforms.
 Prerequisites:
 
 - Isaac Sim 6.0.1 with a working NVIDIA driver.
-- The migrated Pegasus checkout at `~/sim/IsaacSim-Extensions/PegasusSimulator`.
+- The migrated Pegasus checkout at `~/IsaacSim-Extensions/PegasusSimulator`.
   The project does not patch or modify that installation.
-- Built PX4 SITL at `~/sim/PX4-Autopilot` (the binary is checked before starting Kit).
+- Built PX4 SITL at `~/PX4-Autopilot` (the binary is checked before starting Kit).
 - ROS 2 Jazzy, built Aerostack2, `as2_platform_pixhawk` and `px4_msgs` matching
   the PX4 firmware's DDS message definitions. These are separate installations;
   this example does not install them or change the PX4 checkout.
@@ -58,7 +58,7 @@ export PEGASUS_SIMULATOR_DIR="$HOME/sim/IsaacSim-Extensions/PegasusSimulator"
 export PX4_DIR="$HOME/sim/PX4-Autopilot"
 ```
 
-All options: `python3 drone_camera_lidar_isaac_sim.py --help` (does not start Kit).
+All options: `python3 scripts/drone_camera_lidar_isaac_sim.py --help` (does not start Kit).
 Both scripts also accept the existing `--px4_dir` argument.
 
 In a second terminal, source your built AS2 and Pixhawk platform workspaces, then:
@@ -125,7 +125,10 @@ Note: Check Troubleshooting section if you have installation problems and rememb
 ```
 mkdir ~/workspace
 cd ~/workspace
-git clone https://github.com/aerostack2/project_pegasus_isaac_sim
+https://github.com/Lanot/aerostack2-project_pegasus_isaac_sim.git
+
+# Or origin:
+# git clone https://github.com/aerostack2/project_pegasus_isaac_sim
 ```
 
 ### Install dependencies and remove conda activation from .bashrc
@@ -138,6 +141,8 @@ If conda is installed already in your system, remove everything related to conda
 conda config --set auto_activate_base false
 ```
 
+
+## Origin Isaac Sim 4.x (Ubuntu 22.04 / ROS 2 Humble)
 ### Install Pegasus Simulator and Isaac Sim 4.2.0
 
 Follow this instructions to install Isaac Sim 4.2.0 (https://pegasussimulator.github.io/PegasusSimulator/source/setup/installation.html)
@@ -145,10 +150,10 @@ Follow this instructions to install Isaac Sim 4.2.0 (https://pegasussimulator.gi
 You should be able now to run:
 ```
 # Run the bundled python interpreter and see if it prints on the terminal "Hello World."
-ISAACSIM_PYTHON -c "print('Hello World.')"
+$ISAACSIM_PYTHON -c "print('Hello World.')"
 
 # Run the python interpreter and check if we can run a script that starts the simulator and adds cubes to the world
-ISAACSIM_PYTHON ${ISAACSIM_PATH}/standalone_examples/api/omni.isaac.core/add_cubes.py
+$ISAACSIM_PYTHON ${ISAACSIM_PATH}/standalone_examples/api/omni.isaac.core/add_cubes.py
 ```
 Install Pegasus Simulator (https://pegasussimulator.github.io/PegasusSimulator/source/setup/installation.html#installing-the-pegasus-simulator)
 
@@ -178,7 +183,7 @@ To check the installation is successful until this point:
 ```
 source /opt/ros/humble/setup.bash
 cd ~/workspace/project_pegasus_isaac_sim
-ISAACSIM_PYTHON drone_camera_lidar_isaac_sim.py
+$ISAACSIM_PYTHON ./scripts/drone_camera_lidar_isaac_sim.py
 ```
 Now the simulation with Pegasus Simulator and Isaac Sim will be running. Run now QGroundControl:
 ```
@@ -226,7 +231,7 @@ colcon build
 ```
 
 ## Config [WIP]
-Currently, the environment can be changed in `drone_camera_lidar_isaac_sim.py`, in the line:
+Currently, the environment can be changed in `scripts/drone_camera_lidar_isaac_sim.py`, in the line:
 ```
 # Launch one of the worlds provided by NVIDIA
 self.pg.load_environment(SIMULATION_ENVIRONMENTS["Warehouse with Shelves"])
@@ -242,7 +247,7 @@ Open a terminal and launch Isaac Sim simulation:
 ```
 source /opt/ros/humble/setup.bash
 cd ~/workspace/project_pegasus_isaac_sim
-ISAACSIM_PYTHON drone_camera_lidar_isaac_sim.py --px4_dir <root_to_px4>/PX4-Autopilot
+$ISAACSIM_PYTHON scripts/drone_camera_lidar_isaac_sim.py --px4_dir <root_to_px4>/PX4-Autopilot
 ```
 
 Open another terminal and launch Micro XRCE-DDS Client:

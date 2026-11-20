@@ -4,10 +4,10 @@ set -euo pipefail
 project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 isaacsim_dir="${ISAACSIM_PATH:-$HOME/IsaacSim}"
 isaacsim_python="${ISAACSIM_PYTHON:-$isaacsim_dir/python.sh}"
-entrypoint=drone_camera_lidar_isaac_sim.py
+entrypoint="scripts/drone_camera_lidar_isaac_sim.py"
 
 if [[ "${1:-}" == --follow-camera ]]; then
-    entrypoint=drone_camera_lidar_isaac_sim_following.py
+    entrypoint="scripts/drone_camera_lidar_isaac_sim_following.py"
     shift
 fi
 
