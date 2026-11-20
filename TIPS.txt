@@ -1,0 +1,21 @@
+./launch_isaacsim.bash --follow-camera --position 3 0 0.07
+
+# tmux attach -t drone1
+
+tmux kill-session -t drone1
+./launch_as2.bash -n drone1 -x
+
+
+ros2 topic info /drone1/fmu/out/vehicle_odometry
+ros2 topic info /drone1/sensor_measurements/odom
+
+timeout 5 ros2 topic echo /drone1/fmu/out/vehicle_odometry \
+  --once --qos-reliability best_effort
+
+timeout 5 ros2 topic echo /drone1/sensor_measurements/odom \
+  --once --qos-reliability best_effort
+
+timeout 5 ros2 run tf2_ros tf2_echo drone1/odom drone1/base_link
+
+
+
