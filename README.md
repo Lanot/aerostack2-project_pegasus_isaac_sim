@@ -289,19 +289,19 @@ There are several missions that can be executed:
   ```
 - **AS2 Python API single drone mission**: You can execute a mission that used AS2 Python API, launching the mission with:
   ```bash
-  python3 mission.py -n drone0
+  python3 mission.py -n drone1
   ```
 - **AS2 Python API single drone mission using GPS**: You can execute a mission that used AS2 Python API with GPS, launching the mission with:
   ```bash
-  python3 mission_gps.py -n drone0
+  python3 mission_gps.py -n drone1
   ```
 - **AS2 Mission Interpreter single drone mission**: You can execute a mission that used AS2 Mission Interpreter, launching the mission with:
   ```bash
-  python3 mission_interpreter.py -n drone0
+  python3 mission_interpreter.py -n drone1
   ```
 - **AS2 Behavior Trees single drone mission**: You can execute a mission that used AS2 Behavior Trees, launching the mission with:
   ```bash
-  python3 mission_behavior_tree.py -n drone0
+  python3 mission_behavior_tree.py -n drone1
   ```
 
 You can force the end of all tmux sessions with the command:
