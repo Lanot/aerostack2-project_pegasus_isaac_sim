@@ -5,6 +5,7 @@
 tmux kill-session -t drone1
 ./launch_as2.bash -n drone1 -x
 
+-x starts: MicroXRCEAgent udp4 -p 8888
 
 ros2 topic info /drone1/fmu/out/vehicle_odometry
 ros2 topic info /drone1/sensor_measurements/odom
