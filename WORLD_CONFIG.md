@@ -291,3 +291,42 @@ When frequency is omitted, the launcher chooses the largest divisor of the rende
 rate up to 30 Hz (25 Hz at 50 Hz rendering). Explicit rates are validated before
 starting Kit, including cameras nested inside gimbal payloads. This applies even
 without ROS publishers because camera rendering still uses the same API.
+
+## Stream a ROS camera to QGroundControl over UDP
+
+The relay `scripts/stream_video_udp.py` runs outside Isaac Sim using system Python
+with ROS sourced. It subscribes with sensor-data QoS, encodes H.264 with x264,
+and sends RTP payload type 96 over UDP. It uses wall-clock timestamps, drops
+frames under load and limits the send rate; it cannot create new camera frames
+when the simulator is slow. The software encoder adds CPU load, so defaults are
+640x360 at up to 10 FPS and 1500 kbit/s. No cv_bridge or OpenCV is required.
+
+Install dependencies if missing:
+
+```bash
+sudo apt install python3-gi gir1.2-gstreamer-1.0 gstreamer1.0-tools \
+  gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+  gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
+```
+
+With a camera payload and ROS publishing enabled, source the same ROS workspace
+and `ROS_DOMAIN_ID` as the simulator. Then run:
+
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/workspaces/aerostack2_ws/install/setup.bash
+export ROS_DOMAIN_ID=10
+python3 scripts/stream_video_udp.py \
+  --topic /drone0/camera/color/image_raw --host 127.0.0.1 --port 5600
+```
+
+In QGC Video settings choose `UDP h.264` and port 5600 (or UDP URL
+`0.0.0.0:5600` on newer builds). Enable Low Latency Mode and disable
+`Disable Video Stream When Disarmed` when testing. Replace the host with the
+QGC computer's LAN IP if it is remote. Allow incoming UDP on that computer.
+The relay reports when the first image is sent. Ctrl+C stops just the relay.
+
+For another drone, select its image topic and a distinct port such as 5601.
+Select the corresponding port manually in QGC; these independent UDP feeds do
+not automatically follow the selected vehicle or advertise MAVLink cameras.
+The depth topic is not suitable for this color-video relay.

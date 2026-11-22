@@ -347,3 +347,12 @@ Remove from `.bashrc` the conda init for the base environment. Source again `.ba
 ```
 killall px4
 ```
+
+
+### Video Relay from ROS2 to QGC via UDP
+```
+python3 scripts/stream_video_udp.py \
+  --topic /drone0/camera/color/image_raw \
+  --host 127.0.0.1 \
+  --port 5600
+```
