@@ -214,3 +214,14 @@ This changes synchronization and may change control timing. It does not change
 the PX4 firmware's internal lockstep configuration or establish flight readiness.
 Check live odometry for every drone and test one vehicle before swarm missions.
 A responsive GUI alone does not prove PX4 is exchanging sensor/actuator data.
+
+To start the complete swarm without the Isaac Sim GUI, use:
+
+```bash
+bash launch_as2.bash -m -x --headless --no-follow-camera --no-attach
+```
+
+`--headless` is forwarded through tmuxinator to `SimulationApp`. It also works
+when launching the simulator directly: `bash launch_isaacsim.bash -m --headless`.
+With `-s`, AS2 does not launch a simulator, so this option has no effect on an
+already running simulator.

@@ -8,6 +8,7 @@ usage() {
     echo "      -m, --swarm: use config/world_swarm.yaml. Default: config/world.yaml"
     echo "      -w, --config FILE: use a custom world description file"
     echo "      -n, --namespace NAMES: comma-separated drone names. Default: all configured drones"
+    echo "      --headless: launch Isaac Sim without its GUI"
     echo "      -s, --no-simulation: do not launch Isaac Sim"
     echo "      -x: launch one Micro XRCE-DDS Agent for all drones"
     echo "      -c CONTROLLER: select pid or df. Default: pid"
@@ -27,6 +28,7 @@ swarm="false"
 simulation_config=""
 drones_namespace_comma=""
 launch_simulation="true"
+headless="false"
 micro_xrce_agent="false"
 motion_controller="pid"
 rosbag="false"
@@ -51,6 +53,10 @@ while (($#)); do
         -n|--namespace)
             drones_namespace_comma="${2:?Missing drone names}"
             shift 2
+            ;;
+        --headless)
+            headless="true"
+            shift
             ;;
         -s|--no-simulation)
             launch_simulation="false"
@@ -182,6 +188,7 @@ for index in "${!drone_namespaces[@]}"; do
         "simulation_log_file=$simulation_log"
         "platform_config_file=$run_dir/$namespace.yaml"
         "base_launch=$base_launch"
+        "headless=$headless"
         "micro_xrce_agent=$launch_agent"
         "motion_controller_plugin=$motion_controller_plugin"
         "rosbag=$rosbag"

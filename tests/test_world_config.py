@@ -142,7 +142,8 @@ class WorldTests(unittest.TestCase):
                    'puts ERB.new(File.read(ARGV[0]), trim_mode: "-").result(binding)')
         for override, expected in (('', None), ('true', '--follow-camera'),
                                    ('false', '--no-follow-camera')):
-            settings = dict(base_launch='true', drone_namespace='drone0',
+            settings = dict(headless='true' if override == 'true' else 'false',
+                            base_launch='true', drone_namespace='drone0',
                             follow_camera=override, follow_drone='drone0',
                             simulation_config_file='config/world.yaml')
             result = subprocess.run(['ruby', '-e', program,
@@ -157,6 +158,7 @@ class WorldTests(unittest.TestCase):
                 self.assertNotIn('--follow-camera', command)
                 self.assertNotIn('--no-follow-camera', command)
             self.assertIn('--follow-drone drone0', command)
+            self.assertEqual('--headless' in command, override == 'true')
 
     def test_swarm_launcher_one_sim_one_agent_and_correct_routing(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -182,12 +184,13 @@ class WorldTests(unittest.TestCase):
             for option, value in (('--follow-camera', 'true'), ('--no-follow-camera', 'false')):
                 log.write_text('')
                 result = subprocess.run(['bash', str(ROOT / 'launch_as2.bash'), '-m',
-                    '--no-attach', '--no-log-follow', option, '--follow-drone', 'drone2'],
+                    '--no-attach', '--no-log-follow', '--headless', option, '--follow-drone', 'drone2'],
                     env=env, capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 camera_commands = [json.loads(line) for line in log.read_text().splitlines()]
                 self.assertIn('follow_camera=' + value, camera_commands[0])
                 self.assertIn('follow_drone=drone2', camera_commands[0])
+                self.assertIn('headless=true', camera_commands[0])
             log.write_text('')
             result = subprocess.run(['bash', str(ROOT / 'launch_ground_station.bash'), '-m', '-t', '--no-attach'],
                                     env=env, capture_output=True, text=True, cwd='/tmp')

@@ -43,3 +43,5 @@ param set UXRCE_DDS_DOM_ID 10
 uxrce_dds_client start -t udp -h 127.0.0.1 -p 8888 -n drone1
 param show UXRCE_DDS_DOM_ID
 uxrce_dds_client status
+
+

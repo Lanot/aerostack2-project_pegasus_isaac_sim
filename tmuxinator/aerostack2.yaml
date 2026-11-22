@@ -1,6 +1,7 @@
 <%
 require "shellwords"
 # Input parameters
+headless = @settings["headless"] == "true"
 simulation_log_file = @settings["simulation_log_file"].to_s
 follow_camera = @settings["follow_camera"].to_s
 follow_drone = @settings["follow_drone"].to_s
@@ -29,7 +30,7 @@ windows:
       panes:
       # Start one simulator for the entire configured world.
       <% if base_launch %>
-        - set -o pipefail; PYTHONUNBUFFERED=1 bash launch_isaacsim.bash <% if follow_camera == "true" %>--follow-camera <% elsif follow_camera == "false" %>--no-follow-camera <% end %><% unless follow_drone.empty? %>--follow-drone <%= follow_drone.shellescape %> <% end %>--config "<%= simulation_config_file %>"<% unless simulation_log_file.empty? %> 2>&1 | tee -a <%= simulation_log_file.shellescape %><% end %>
+        - set -o pipefail; PYTHONUNBUFFERED=1 bash launch_isaacsim.bash <% if headless %>--headless <% end %><% if follow_camera == "true" %>--follow-camera <% elsif follow_camera == "false" %>--no-follow-camera <% end %><% unless follow_drone.empty? %>--follow-drone <%= follow_drone.shellescape %> <% end %>--config "<%= simulation_config_file %>"<% unless simulation_log_file.empty? %> 2>&1 | tee -a <%= simulation_log_file.shellescape %><% end %>
       <% end %>
       # One DDS agent serves all PX4 instances in this world.
       <% if micro_xrce_agent %>

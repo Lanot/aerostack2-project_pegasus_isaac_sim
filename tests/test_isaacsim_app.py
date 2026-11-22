@@ -29,6 +29,7 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('--config', result.stdout)
         self.assertIn('--follow-camera', result.stdout)
+        self.assertIn('--headless', result.stdout)
         self.assertNotIn('--world-usd', result.stdout)
 
     def test_missing_px4_fails_before_importing_kit(self):
@@ -69,7 +70,7 @@ class LauncherTests(unittest.TestCase):
                    'omni.kit.app': omni.kit.app, 'omni.timeline': omni.timeline}
         args = types.SimpleNamespace(
             no_px4=True, no_px4_autolaunch=False, pegasus_dir=Path('/fake/PegasusSimulator'),
-            headless=True, print_config=False, follow_camera=True, no_camera=False, no_lidar=False, no_ros2=False, max_steps=2,
+            headless=False, print_config=False, follow_camera=True, no_camera=False, no_lidar=False, no_ros2=False, max_steps=2,
         )
         def import_after_startup(name):
             if name != 'isaacsim':
@@ -101,6 +102,7 @@ class LauncherTests(unittest.TestCase):
         # Bootstrap update, two loop updates and three stop-callback updates.
         self.assertEqual(app.update.call_count, 6)
         self.assertEqual(app.mock_calls[-1], unittest.mock.call.close())
+        self.assertTrue(constructor.call_args.args[0]['headless'])
         self.assertEqual(constructor.call_args.args[0]['extra_args'],
                          ['--ext-folder', '/fake/PegasusSimulator/extensions'])
         self.assertIn(unittest.mock.call('isaacsim.sensors.experimental.rtx', True),
