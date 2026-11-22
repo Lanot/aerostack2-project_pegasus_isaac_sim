@@ -28,13 +28,19 @@ drones:
       - -2.0
       - 0.0
       - 0.2
+    rpy:
+      - 0.0
+      - 0.0
+      - 3.1415927 # Yaw 180°
+      # - 1.5707963 # Yaw: +90°
     payload:
       - model_type: "gps"
         model_name: "gps"
       - model_type: "camera"
         model_name: "camera"
         config:
-          frequency: 25
+          frequency: 10
+          resolution: [640, 360]
 
   - model_type: "quadrotor_base"
     model_name: "drone1"
@@ -43,13 +49,19 @@ drones:
       - 2.0
       - 0.0
       - 0.2
+    rpy:
+      - 0.0
+      - 0.0
+      - 3.1415927 # Yaw 180°
+      # - 1.5707963 # Yaw: +90°
     payload:
       - model_type: "gps"
         model_name: "gps"
       - model_type: "camera"
         model_name: "camera"
         config:
-          frequency: 25
+          frequency: 10
+          resolution: [640, 360]
 
   - model_type: "quadrotor_base"
     model_name: "drone2"
@@ -58,10 +70,16 @@ drones:
       - 0.0
       - 0.0
       - 0.2
+    rpy:
+      - 0.0
+      - 0.0
+      - 3.1415927 # Yaw 180°
+      # - 1.5707963 # Yaw: +90°
     payload:
       - model_type: "gps"
         model_name: "gps"
       - model_type: "camera"
         model_name: "camera"
         config:
-          frequency: 25
+          frequency: 10
+          resolution: [640, 360]
