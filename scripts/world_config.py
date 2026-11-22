@@ -64,11 +64,38 @@ def load_world(filename):
     if simulation['render_hz'] > simulation['physics_hz']:
         raise ValueError('simulation.render_hz must not exceed physics_hz')
 
+    extensions = result.setdefault('extensions', [])
+    if not isinstance(extensions, list) or any(
+        not isinstance(name, str) or not name or name.startswith('-') for name in extensions
+    ):
+        raise ValueError('extensions must be a list of extension names')
+
+    extension_paths = result.setdefault('extension_paths', [])
+    if not isinstance(extension_paths, list):
+        raise ValueError('extension_paths must be a list of local directories')
+    normalized_paths = []
+
+    for entry in extension_paths:
+        if not isinstance(entry, str) or not entry:
+            raise ValueError('extension_paths must contain nonempty strings')
+
+        directory = Path(entry).expanduser()
+        if not directory.is_absolute():
+            directory = path.parent / directory
+        directory = directory.resolve()
+        if not directory.is_dir():
+            raise ValueError(f'Extension directory not found: {directory}')
+        normalized_paths.append(str(directory))
+
+    result['extension_paths'] = normalized_paths
+
     if 'origin' in config:
         origin = config['origin']
+
         if not isinstance(origin, dict):
             raise ValueError('origin must contain latitude, longitude and altitude')
         values = vector([origin.get(k) for k in ('latitude', 'longitude', 'altitude')], 'origin')
+
         if not -90 <= values[0] <= 90 or not -180 <= values[1] <= 180:
             raise ValueError('Invalid geographic origin')
         result['origin'] = dict(zip(('latitude', 'longitude', 'altitude'), values))
@@ -99,26 +126,32 @@ def load_world(filename):
     for index, drone in enumerate(result['drones']):
         if not isinstance(drone, dict):
             raise ValueError(f'drones[{index}] must be a mapping')
+
         name = drone.get('model_name')
         if not isinstance(name, str) or not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', name):
             raise ValueError('Each drone needs a valid ROS/USD model_name')
         if name in names:
             raise ValueError(f'Duplicate drone name: {name}')
+
         instance = drone.get('instance', index)
         if isinstance(instance, bool) or not isinstance(instance, int) or not 0 <= instance <= 254:
             raise ValueError(f'{name}.instance must be an integer in 0..254')
         if instance in instances:
             raise ValueError(f'Duplicate PX4 instance: {instance}')
+
         names.add(name)
         instances.add(instance)
+
         drone['instance'] = instance
         drone['xyz'] = vector(drone.get('xyz', [0, 0, 0.07]), name + '.xyz')
         drone['rpy'] = vector(drone.get('rpy', [0, 0, 0]), name + '.rpy')
+
         drone.setdefault('model_type', 'quadrotor_base')
         if not isinstance(drone['model_type'], str):
             raise ValueError('model_type must be a string')
         if not isinstance(drone.get('payload', []), list):
             raise ValueError(f'{name}.payload must be a list')
+
         if drone.get('usd_path'):
             usd = Path(drone['usd_path']).expanduser()
             if not usd.is_absolute():
@@ -162,6 +195,7 @@ def platform_config(world, name, base_file):
 
     with Path(base_file).open() as stream:
         base = yaml.safe_load(stream) or {}
+
     common = base.get('/**', {})
     params = dict(common.get('ros__parameters', {}))
     params.update(common.get('platform', {}).get('ros__parameters', {}))

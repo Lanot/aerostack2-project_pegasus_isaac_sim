@@ -105,6 +105,7 @@ def set_camera_view(stage, view, headless):
 def build_scene(app, args, following=False):
     context = omni.usd.get_context()
     if args.world_usd:
+        print(f'[AS2] Opening world USD: {args.world_usd}', flush=True)
         if not context.open_stage(args.world_usd):
             raise RuntimeError(f'Cannot open world stage: {args.world_usd}')
     else:
@@ -152,7 +153,12 @@ def build_scene(app, args, following=False):
     if not args.no_ros2:
         create_clock()
 
-    drones = [spawn_vehicle(app, args, spec, following, context) for spec in args.world['drones']]
+    drones = []
+    for spec in args.world['drones']:
+        print(f"[AS2] Spawning {spec['model_name']} (PX4 instance {spec['instance']})", flush=True)
+        drones.append(spawn_vehicle(app, args, spec, following, context))
+        print(f"[AS2] Spawned {spec['model_name']}", flush=True)
+
     by_name = dict(zip((d['model_name'] for d in args.world['drones']), drones))
     follow_camera = FollowCamera(by_name[args.follow_drone], args.headless) if following else None
     if not following and args.world.get('scene_camera_view'):

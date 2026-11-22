@@ -94,6 +94,21 @@ class WorldTests(unittest.TestCase):
             self.assertFalse(args.no_lidar)
             self.assertEqual(args.world['drones'][0]['xyz'], [3., 0., .07])
 
+    def test_extension_names_and_relative_search_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ext = Path(directory) / 'extensions'
+            ext.mkdir()
+            path = self.write_world(directory, [{'model_name': 'a'}],
+                                    extension_paths=['extensions'], extensions=['cesium.omniverse'])
+            world = load_world(path)
+            self.assertEqual(world['extension_paths'], [str(ext)])
+            self.assertEqual(world['extensions'], ['cesium.omniverse'])
+            for options in ({'extensions': 'cesium.omniverse'}, {'extensions': [False]},
+                            {'extensions': ['--enable']}, {'extension_paths': 'extensions'},
+                            {'extension_paths': [False]}, {'extension_paths': ['missing']}):
+                with self.subTest(options=options), self.assertRaises(ValueError):
+                    load_world(self.write_world(directory, [{'model_name': 'a'}], **options))
+
     def test_simulation_rates(self):
         with tempfile.TemporaryDirectory() as directory:
             path = self.write_world(directory, [{'model_name': 'a'}])

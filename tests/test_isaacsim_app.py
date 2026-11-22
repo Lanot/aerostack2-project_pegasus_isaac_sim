@@ -6,6 +6,8 @@ import subprocess
 import sys
 import types
 import unittest
+from io import StringIO
+from contextlib import redirect_stderr
 from unittest.mock import MagicMock, patch
 
 ROOT = Path(__file__).resolve().parents[1] / 'scripts'
@@ -48,7 +50,7 @@ class LauncherTests(unittest.TestCase):
             args = launcher.parse_arguments(['--pegasus-dir', directory, '--config', str(world)])
             self.assertTrue(args.no_px4)
 
-    def run_mocked_app(self, *, fail_extension=False, scene_error=None, headless=False):
+    def run_mocked_app(self, *, fail_extension=False, scene_error=None, headless=False, extra_extensions=False):
         app = MagicMock()
         app.is_running.return_value = True
         manager = MagicMock()
@@ -65,12 +67,27 @@ class LauncherTests(unittest.TestCase):
         omni.timeline.get_timeline_interface = MagicMock(return_value=timeline)
         scene_module = types.ModuleType('isaacsim_scene')
         scene_module.simulation_counters = MagicMock(return_value=(0.0, 0))
+        def verify_error_before_close(*, exit_code):
+            if scene_error:
+                self.assertEqual(exit_code, 1)
+                self.assertIn('Simulation failed during building world and spawning vehicles', errors.getvalue())
+                self.assertIn(str(scene_error), errors.getvalue())
+                self.assertIn('Traceback', errors.getvalue())
+            elif fail_extension:
+                self.assertEqual(exit_code, 1)
+                self.assertIn('enabling extensions', errors.getvalue())
+            else:
+                self.assertEqual(exit_code, 0)
+        errors = StringIO()
+        app.close.side_effect = verify_error_before_close
         follow = MagicMock()
         scene_module.build_scene = MagicMock(side_effect=scene_error, return_value=(MagicMock(), follow))
         modules = {'isaacsim_scene': scene_module, 'isaacsim': isaacsim, 'omni': omni, 'omni.kit': omni.kit,
                    'omni.kit.app': omni.kit.app, 'omni.timeline': omni.timeline}
         args = types.SimpleNamespace(
             no_px4=True, no_px4_autolaunch=False, pegasus_dir=Path('/fake/PegasusSimulator'),
+            world={'extensions': ['cesium.omniverse'] if extra_extensions else [],
+                   'extension_paths': ['/extensions/cesium'] if extra_extensions else []},
             headless=headless, print_config=False, follow_camera=True, no_camera=False, no_lidar=False, no_ros2=False, max_steps=2,
         )
         def import_after_startup(name):
@@ -78,14 +95,15 @@ class LauncherTests(unittest.TestCase):
                 isaacsim.SimulationApp.assert_called_once()
             if name == 'isaacsim_scene':
                 self.assertTrue(app.update.called)
-                for extension in ('pegasus.simulator', 'isaacsim.ros2.bridge'):
+                for extension in ('pegasus.simulator', 'isaacsim.ros2.bridge', *args.world['extensions']):
                     self.assertIn(unittest.mock.call(extension, True),
                                   manager.set_extension_enabled_immediate.call_args_list)
             return modules[name]
 
         with patch.dict(sys.modules, modules), \
              patch.object(launcher, 'import_module', side_effect=import_after_startup), \
-             patch.object(launcher, 'parse_arguments', return_value=args):
+             patch.object(launcher, 'parse_arguments', return_value=args), \
+             redirect_stderr(errors):
             scene = scene_module.build_scene
             if fail_extension or scene_error:
                 with self.assertRaises(RuntimeError):
@@ -102,7 +120,7 @@ class LauncherTests(unittest.TestCase):
         app.close.assert_called_once()
         # Bootstrap update, two loop updates and three stop-callback updates.
         self.assertEqual(app.update.call_count, 6)
-        self.assertEqual(app.mock_calls[-1], unittest.mock.call.close())
+        self.assertEqual(app.mock_calls[-1], unittest.mock.call.close(exit_code=0))
         self.assertFalse(constructor.call_args.args[0]['headless'])
         self.assertEqual(constructor.call_args.args[0]['extra_args'],
                          ['--ext-folder', '/fake/PegasusSimulator/extensions'])
@@ -114,6 +132,18 @@ class LauncherTests(unittest.TestCase):
         _, _, _, constructor, _, _ = self.run_mocked_app(headless=True)
         self.assertTrue(constructor.call_args.args[0]['headless'])
         self.assertTrue(constructor.call_args.args[0]['disable_viewport_updates'])
+
+    def test_cesium_paths_and_schemas_precede_stage_loading(self):
+        _, manager, _, constructor, scene, _ = self.run_mocked_app(extra_extensions=True)
+        extra_args = constructor.call_args.args[0]['extra_args']
+        self.assertEqual(extra_args[:4], ['--ext-folder', '/fake/PegasusSimulator/extensions',
+                                         '--ext-folder', '/extensions/cesium'])
+        self.assertIn('cesium.usd.plugins', extra_args)
+        self.assertIn('--/app/useFabricSceneDelegate=true', extra_args)
+        self.assertIn('--/exts/cesium.omniverse/showOnStartup=false', extra_args)
+        self.assertIn(unittest.mock.call('cesium.omniverse', True),
+                      manager.set_extension_enabled_immediate.call_args_list)
+        scene.assert_called_once()
 
     def test_failed_extension_closes_kit_without_building_scene(self):
         app, manager, timeline, constructor, scene, follow = self.run_mocked_app(

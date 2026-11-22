@@ -250,3 +250,32 @@ wall-clock second, app updates per wall-clock second and physics steps per updat
 RTF near 1, physics_hz near 250 and app_hz near 50 indicate real-time progress.
 A timing configuration does not guarantee the hardware achieves those rates;
 compare measurements before missions. Pauses and startup affect the first sample.
+
+## Cesium USD worlds
+
+`world_usd` opens the stage, but a standalone app must also load Cesium's USD
+schemas and streaming extension. The supplied custom-world configs now include:
+
+```yaml
+extension_paths:
+  - /home/tolik/sim/IsaacSim-Extensions/CesiumGS-cesium-omniverse-linux-x86_64-v0.30.0
+extensions:
+  - cesium.omniverse
+```
+
+Paths must name extension search roots containing both `cesium.omniverse` and
+`cesium.usd.plugins`; relative paths resolve against the world YAML. The launcher
+registers Cesium schemas during Kit startup, enables Fabric, suppresses the Cesium
+startup window and enables the streaming extension before opening the USD stage.
+Missing directories or extensions fail explicitly. Cesium ion authorization and
+tileset settings remain in your existing stage/application configuration.
+
+```bash
+bash launch_as2.bash --config config/custom_world_swarm.yaml -x --no-attach
+```
+
+Start with the GUI to verify tile streaming and camera location before testing
+headless behavior. The stage-loading wait covers USD assets; Cesium streams tiles
+asynchronously afterward. This does not establish a terrain-collision readiness
+gate or align the stage georeference with Pegasus's GPS origin. Empty-world
+configs load no Cesium extensions.

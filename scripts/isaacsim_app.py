@@ -9,6 +9,8 @@ import argparse
 from importlib import import_module
 import json
 import os
+import sys
+import traceback
 from pathlib import Path
 
 import yaml
@@ -107,12 +109,26 @@ def main(argv=None):
 
     # Isaac Sim and Kit are unavailable during offline CLI validation.
     SimulationApp = import_module('isaacsim').SimulationApp
+    extra_args = ['--ext-folder', str(args.pegasus_dir / 'extensions')]
+
+    for directory in args.world['extension_paths']:
+        extra_args.extend(['--ext-folder', directory])
+    if 'cesium.omniverse' in args.world['extensions']:
+        # Register schemas at Kit startup, and use Fabric for streamed tile data.
+        # The main Cesium extension is enabled after SimulationApp returns.
+        extra_args.extend(['--enable', 'cesium.usd.plugins',
+                           '--/app/useFabricSceneDelegate=true',
+                           '--/exts/cesium.omniverse/showOnStartup=false'])
+
     app = SimulationApp({
         'headless': args.headless,
         'disable_viewport_updates': args.headless,
-        'extra_args': ['--ext-folder', str(args.pegasus_dir / 'extensions')],
+        'extra_args': extra_args,
     })
+
     timeline = None
+    exit_code = 0
+    phase = 'enabling extensions'
 
     try:
         kit_app = import_module('omni.kit.app')
@@ -126,7 +142,11 @@ def main(argv=None):
             extensions.append('isaacsim.sensors.experimental.rtx')
         if not args.no_ros2:
             extensions.append('isaacsim.ros2.bridge')
-        for extension in extensions:
+
+        extensions.extend(args.world['extensions'])
+
+        for extension in dict.fromkeys(extensions):
+            print(f'[AS2] Enabling extension: {extension}', flush=True)
             manager.set_extension_enabled_immediate(extension, True)
             if not manager.is_extension_enabled(extension):
                 raise RuntimeError(f'Could not enable {extension}')
@@ -135,12 +155,18 @@ def main(argv=None):
 
         timeline = timeline_module.get_timeline_interface()
         # Load scene dependencies only after Kit and the requested extensions.
+        phase = 'loading scene module'
         scene = import_module('isaacsim_scene')
+        phase = 'building world and spawning vehicles'
         drones, follow_camera = scene.build_scene(app, args, following=following)
+        phase = 'starting physics'
+        print('[AS2] Starting physics', flush=True)
         timeline.play()
         performance = SimulationPerformance(scene.simulation_counters)
         steps = 0
 
+        phase = 'running simulation'
+        print('[AS2] Entering simulation loop', flush=True)
         while app.is_running() and (not args.max_steps or steps < args.max_steps):
             app.update()
             if follow_camera is not None:
@@ -148,6 +174,19 @@ def main(argv=None):
             steps += 1
             performance.sample()
         print(f'PEGASUS_RUN_COMPLETE steps={steps}', flush=True)
+
+    except KeyboardInterrupt:
+        exit_code = 130
+        print(f'[AS2] Interrupted during {phase}', file=sys.stderr, flush=True)
+        raise
+
+    except Exception:
+        exit_code = 1
+        # Kit fast shutdown can exit before Python's uncaught-exception handler.
+        print(f'[AS2] Simulation failed during {phase}:', file=sys.stderr, flush=True)
+        traceback.print_exc()
+        sys.stderr.flush()
+        raise
 
     finally:
         try:
@@ -157,8 +196,14 @@ def main(argv=None):
                 for _ in range(3):
                     if app.is_running():
                         app.update()
+        except Exception:
+            exit_code = 1
+            print('[AS2] Simulation cleanup failed:', file=sys.stderr, flush=True)
+            traceback.print_exc()
+            sys.stderr.flush()
+            raise
         finally:
-            app.close()
+            app.close(exit_code=exit_code)
 
 
 if __name__ == '__main__':
