@@ -32,6 +32,8 @@ drones:
         model_name: "gps"
       - model_type: "gimbal_speed"
         model_name: "gimbal"
+        config:
+          frequency: 25
         payload:
           model_type: "hd_camera"
           model_name: "camera"

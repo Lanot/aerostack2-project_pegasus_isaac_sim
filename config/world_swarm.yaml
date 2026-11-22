@@ -31,6 +31,10 @@ drones:
     payload:
       - model_type: "gps"
         model_name: "gps"
+      - model_type: "camera"
+        model_name: "camera"
+        config:
+          frequency: 25
 
   - model_type: "quadrotor_base"
     model_name: "drone1"
@@ -42,6 +46,10 @@ drones:
     payload:
       - model_type: "gps"
         model_name: "gps"
+      - model_type: "camera"
+        model_name: "camera"
+        config:
+          frequency: 25
 
   - model_type: "quadrotor_base"
     model_name: "drone2"
@@ -53,3 +61,7 @@ drones:
     payload:
       - model_type: "gps"
         model_name: "gps"
+      - model_type: "camera"
+        model_name: "camera"
+        config:
+          frequency: 25
