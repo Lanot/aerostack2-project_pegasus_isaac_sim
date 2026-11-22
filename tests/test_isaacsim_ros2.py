@@ -17,18 +17,28 @@ class SensorGraphTests(unittest.TestCase):
         omni.replicator = types.ModuleType('omni.replicator')
         omni.replicator.core = MagicMock()
         backend = types.ModuleType('pegasus.simulator.logic.backends.ros2_backend')
-        backend.ROS2Backend = type('Backend', (), {})
+        class FakeBackend:
+            def __init__(self, vehicle_id, num_rotors, config):
+                self._namespace = config.get('namespace', 'drone')
+                self._id = vehicle_id
+                self.initialize_publishers(config)
+
+            def initialize_publishers(self, config):
+                self.captured_topic_namespace = self._namespace + str(self._id)
+
+        backend.ROS2Backend = FakeBackend
         modules = {'omni': omni, 'omni.graph': omni.graph,
                    'omni.graph.core': omni.graph.core, 'omni.replicator': omni.replicator,
                    'omni.replicator.core': omni.replicator.core,
                    'pegasus.simulator.logic.backends.ros2_backend': backend}
-        spec = importlib.util.spec_from_file_location('isaacsim6_ros2', ROOT / 'isaacsim6_ros2.py')
+        spec = importlib.util.spec_from_file_location('isaacsim_ros2', ROOT / 'isaacsim_ros2.py')
         module = importlib.util.module_from_spec(spec)
         with patch.dict(sys.modules, modules):
             spec.loader.exec_module(module)
+        self.module = module
         self.og = omni.graph.core
         self.rep = omni.replicator.core
-        self.backend = module.IsaacSim6ROS2Backend()
+        self.backend = module.IsaacSim6ROS2Backend.__new__(module.IsaacSim6ROS2Backend)
         self.backend._namespace = 'drone'
         self.backend._id = 1
         self.backend.graphical_sensors_writers = {}
@@ -50,6 +60,11 @@ class SensorGraphTests(unittest.TestCase):
         self.backend.add_monocular_camera_writter(dict(data, depth=True))
         self.assertEqual(self.graph_values()['Depth.inputs:type'], 'depth')
         self.assertIn('camera', self.backend.graphical_sensors_writers)
+
+    def test_arbitrary_drone_name_is_exact_and_numeric_id_is_preserved(self):
+        backend = self.module.IsaacSim6ROS2Backend(4, config={'namespace_exact': 'leader'})
+        self.assertEqual(backend.captured_topic_namespace, 'leader')
+        self.assertEqual(backend._id, 4)
 
     def test_lidar_publishes_both_types_and_retains_render_product(self):
         product = types.SimpleNamespace(path='/Render/Lidar')

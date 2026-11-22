@@ -1,9 +1,16 @@
 <%
+require "shellwords"
 # Input parameters
+simulation_log_file = @settings["simulation_log_file"].to_s
+follow_camera = @settings["follow_camera"].to_s
+follow_drone = @settings["follow_drone"].to_s
 drone_namespace           = @settings["drone_namespace"]
 motion_controller_plugin  = @settings["motion_controller_plugin"]
 micro_xrce_agent          = @settings["micro_xrce_agent"] == "true"
 rosbag                    = @settings["rosbag"] == "true"
+simulation_config_file    = @settings["simulation_config_file"]
+platform_config_file      = @settings["platform_config_file"]
+base_launch               = @settings["base_launch"] == "true"
 %>
 name: <%= drone_namespace %>
 attach: false
@@ -20,13 +27,17 @@ windows:
   - platform:
       layout: tiled
       panes:
-      # Platform
+      # Start one simulator for the entire configured world.
+      <% if base_launch %>
+        - set -o pipefail; PYTHONUNBUFFERED=1 bash launch_isaacsim.bash <% if follow_camera == "true" %>--follow-camera <% elsif follow_camera == "false" %>--no-follow-camera <% end %><% unless follow_drone.empty? %>--follow-drone <%= follow_drone.shellescape %> <% end %>--config "<%= simulation_config_file %>"<% unless simulation_log_file.empty? %> 2>&1 | tee -a <%= simulation_log_file.shellescape %><% end %>
+      <% end %>
+      # One DDS agent serves all PX4 instances in this world.
       <% if micro_xrce_agent %>
         - MicroXRCEAgent udp4 -p 8888
       <% end %>
         - AEROSTACK2_SIMULATION_DRONE_ID=<%= drone_namespace %> ros2 launch as2_platform_pixhawk pixhawk_launch.py
             namespace:=<%= drone_namespace %>
-            platform_config_file:=config/config.yaml
+            platform_config_file:="<%= platform_config_file %>"
             
 
 

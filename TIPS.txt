@@ -1,9 +1,24 @@
-./launch_isaacsim.bash --follow-camera --position 3 0 0.07
+Swarm mode creates a separate tmux session per drone, but attaches your terminal only to the first one.
+Inside tmux, press Ctrl+B, release, then press S. Select drone1, drone2, etc. using the arrow keys and Enter.
+./launch_as2.bash -m -x --config ./config/custom_world_swarm.yaml
+
+
+SWARM, no attach:
+./launch_as2.bash -m -x --no-attach --config ./config/custom_world_swarm.yaml
+tmux ls
+tmux attach -t drone0
+tmux attach -t drone1
+tmux attach -t drone2
+
+
+
+./launch_isaacsim.bash --follow-camera
 
 # tmux attach -t drone1
 
 tmux kill-session -t drone1
-./launch_as2.bash -n drone1 -x
+
+./launch_as2.bash -n drone1 -x --no-attach
 
 -x starts: MicroXRCEAgent udp4 -p 8888
 

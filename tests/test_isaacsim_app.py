@@ -8,19 +8,21 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 ROOT = Path(__file__).resolve().parents[1] / 'scripts'
-spec = importlib.util.spec_from_file_location('isaacsim6_app', ROOT / 'isaacsim6_app.py')
+sys.path.insert(0, str(ROOT))
+spec = importlib.util.spec_from_file_location('isaacsim_app', ROOT / 'isaacsim_app.py')
 launcher = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(launcher)
 
 
 class LauncherTests(unittest.TestCase):
-    def test_both_entrypoints_help_without_isaacsim(self):
-        for script in ('drone_camera_lidar_isaac_sim.py',
-                       'drone_camera_lidar_isaac_sim_following.py'):
-            result = subprocess.run([sys.executable, str(ROOT / script), '--help'],
-                                    capture_output=True, text=True)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn('--world-usd', result.stdout)
+    def test_entrypoint_help_without_isaacsim(self):
+        result = subprocess.run(
+            [sys.executable, str(ROOT / 'isaac_sim_run.py'), '--help'],
+            capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('--config', result.stdout)
+        self.assertIn('--follow-camera', result.stdout)
+        self.assertNotIn('--world-usd', result.stdout)
 
     def test_missing_px4_fails_before_importing_kit(self):
         import tempfile
@@ -33,7 +35,9 @@ class LauncherTests(unittest.TestCase):
                 launcher.parse_arguments(['--pegasus-dir', directory,
                                           '--px4-dir', str(root / 'missing')])
             self.assertEqual(error.exception.code, 2)
-            args = launcher.parse_arguments(['--pegasus-dir', directory, '--no-px4'])
+            world = root / 'world.yaml'
+            world.write_text('px4: {enabled: false}\ndrones: [{model_name: drone0}]\n')
+            args = launcher.parse_arguments(['--pegasus-dir', directory, '--config', str(world)])
             self.assertTrue(args.no_px4)
 
     def run_mocked_app(self, *, fail_extension=False, scene_error=None):
@@ -55,7 +59,7 @@ class LauncherTests(unittest.TestCase):
                    'omni.kit.app': omni.kit.app, 'omni.timeline': omni.timeline}
         args = types.SimpleNamespace(
             no_px4=True, no_px4_autolaunch=False, pegasus_dir=Path('/fake/PegasusSimulator'),
-            headless=True, no_camera=False, no_lidar=False, no_ros2=False, max_steps=2,
+            headless=True, print_config=False, follow_camera=True, no_camera=False, no_lidar=False, no_ros2=False, max_steps=2,
         )
         follow = MagicMock()
         with patch.dict(sys.modules, modules), \
@@ -64,9 +68,9 @@ class LauncherTests(unittest.TestCase):
                           return_value=(MagicMock(), follow)) as scene:
             if fail_extension or scene_error:
                 with self.assertRaises(RuntimeError):
-                    launcher.main(following=True)
+                    launcher.main()
             else:
-                launcher.main(following=True)
+                launcher.main()
         return app, manager, timeline, isaacsim.SimulationApp, scene, follow
 
     def test_bounded_loop_and_stop_callbacks_before_close(self):

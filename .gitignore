@@ -1,2 +1,3 @@
 rosbags/*
 .idea/
+config/custom_*.yaml

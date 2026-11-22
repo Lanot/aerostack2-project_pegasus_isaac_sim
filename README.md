@@ -8,14 +8,22 @@ https://github.com/user-attachments/assets/dde015c6-1d9d-4e26-9ad8-0b7a1ecae015
 
 Credits to https://github.com/gdaudt, as the creator of the indoor ship environment shown in this video.
 
+## World and swarm configuration
+
+See [WORLD_CONFIG.md](WORLD_CONFIG.md) for the current config-based workflow.
+`config/world.yaml` and `config/world_swarm.yaml` now drive Isaac Sim, AS2 and
+the ground station. `launch_as2.bash` starts the simulator by default (like the
+Gazebo project); use `-s` when it is already running. The default single drone is
+now **drone0**. The older single-drone instructions below are retained as history.
+
 ## CUSTOM Isaac Sim 6.x (Ubuntu 24.04 / ROS 2 Jazzy)
 
-The two standalone entrypoints now target the `dev_6.0.1_custom` Pegasus port.
-They use `PegasusInterface.initialize_world()`, Kit updates and timeline callbacks;
+The standalone entrypoint now targets the `dev_6.0.1_custom` Pegasus port.
+It uses `PegasusInterface.initialize_world()`, Kit updates and timeline callbacks;
 there is no dependency on the removed `omni.isaac.core.World` API. Enablement of
 Pegasus and the ROS bridge is explicit, so no saved Isaac Sim GUI settings are needed.
-The Python module is shared by both scripts; the following variant tracks the live
-Pegasus physics state rather than potentially stale USD transforms.
+The entrypoint delegates to `scripts/isaacsim_app.py`; a following camera selected
+through YAML or `--follow-camera` tracks live Pegasus physics state.
 
 Prerequisites:
 
@@ -38,23 +46,18 @@ cd ~/workspaces/aerostack2_ws/src/project_pegasus_isaac_sim
 bash launch_isaacsim.bash
 ```
 
-Use spawn position, optionally with the following camera:
+Set spawn positions, world assets, camera behavior and backends in the world YAML,
+then select that file:
 
 ```bash
-bash launch_isaacsim.bash --follow-camera --position 3 0 0.07
+bash launch_isaacsim.bash --config config/world.yaml
+bash launch_isaacsim.bash -m
 ```
 
-Use a custom world and spawn position, optionally with the following camera:
-
-```bash
-bash launch_isaacsim.bash --follow-camera \
-  --world-usd /absolute/path/to/world.usda --position 0 12.5 155
-```
-
-The former machine-specific ship-world path is no longer used. Custom worlds
-are opened as stages, preserving their root settings; Z-up and meter units are
-required. Without `--world-usd`, the default is Warehouse with Shelves.
-Use `--environment none` for an empty stage or a named Pegasus environment.
+For example, `follow_camera: true` enables tracking; `follow_drone` selects the
+drone. `world_usd` opens a custom Z-up stage in meters and each drone's `xyz`
+sets its spawn position. The supplied worlds default to an empty ground plane.
+See [WORLD_CONFIG.md](WORLD_CONFIG.md) for the complete schema.
 
 Optional installation overrides:
 
@@ -64,8 +67,8 @@ export PEGASUS_SIMULATOR_DIR="$HOME/sim/IsaacSim-Extensions/PegasusSimulator"
 export PX4_DIR="$HOME/sim/PX4-Autopilot"
 ```
 
-All options: `python3 scripts/drone_camera_lidar_isaac_sim.py --help` (does not start Kit).
-Both scripts also accept the existing `--px4_dir` argument.
+All options: `python3 scripts/isaac_sim_run.py --help` (does not start Kit).
+The script also accepts the existing `--px4_dir` argument.
 
 In a second terminal, source your built AS2 and Pixhawk platform workspaces, then:
 
@@ -74,18 +77,14 @@ source /opt/ros/jazzy/setup.bash
 source ~/workspaces/aerostack2_ws/install/setup.bash
 # Source a separate as2_platform_pixhawk workspace here if applicable.
 cd ~/workspaces/aerostack2_ws/src/project_pegasus_isaac_sim
-bash launch_as2.bash -n drone1 -x
+bash launch_as2.bash -s -x
 ```
 
 `-x` now runs `MicroXRCEAgent udp4 -p 8888`, rather than opening a physical
 serial device. Alternatively run that command manually and omit `-x`.
-The simulator defaults to PX4 instance 0 (MAVLink system ID 1), DDS namespace
-`drone1`, and ROS sensor namespace `/drone1`, matching the existing AS2 `drone1`
-configuration (`fmu_prefix: /drone1`, `target_system_id: 1`).
-`--vehicle-id` selects the PX4 instance, while `--ros-vehicle-id`, `--namespace`
-and `--px4-dds-namespace` configure the two namespaces independently.
-For externally started SITL, use `--no-px4-autolaunch` and set its DDS namespace
-in that process; `--no-px4` removes the MAVLink backend entirely.
+The selected world config supplies drone names, PX4 instances and namespaces.
+Use `px4.autolaunch: false` for external SITL or `px4.enabled: false` to omit
+the MAVLink backend. Configure the external PX4 process's DDS namespace to match.
 
 The ROS bridge publishes `/clock`. Configure `use_sim_time:=true` on AS2 nodes
 that should follow simulation time. Camera frequency now uses the actual Pegasus
@@ -94,23 +93,16 @@ while Pegasus retains sensor scheduling. Project-local ROS helper graphs publish
 RGB, depth, camera info, point clouds and laser scans using the current bridge
 API, avoiding the legacy backend's CameraInfo list/reshape incompatibility.
 
-Bounded runtime checks (run on a machine with a working GPU):
+Bounded runtime check (requires a working GPU):
 
 ```bash
-# Physics only; no PX4/ROS/sensor dependency or remote environment asset.
-bash launch_isaacsim.bash --headless --environment none \
-  --no-px4 --no-ros2 --no-camera --no-lidar --max-steps 120
-
-# Camera and RTX LiDAR with ROS publishers, without PX4.
-bash launch_isaacsim.bash --headless --environment 'Box Room' \
-  --no-px4 --max-steps 600
+bash launch_isaacsim.bash --config config/world.yaml --headless --max-steps 120
 ```
 
-In the second check, inspect `ros2 topic list` for `/clock`,
-`/drone1/camera/color/image_raw` and `/drone1/lidar/pointcloud`.
-A `PEGASUS_RUN_COMPLETE` marker means the requested update loop completed; it
-is not a takeoff, telemetry, or sensor-content validation. Startup errors propagate
-with a nonzero exit status and Kit is closed in a `finally` block.
+For a physics-only check, use a separate world file with `px4.enabled: false`,
+`ros2: false`, `world_name: empty`, and no camera/LiDAR payloads. A
+`PEGASUS_RUN_COMPLETE` marker confirms completion of the update loop, not flight
+or telemetry. Kit closes in a `finally` block on failure.
 
 Validation of this migration was limited to offline API checks, syntax checks and
 mocked lifecycle regression checks against the installed 6.0.1 source. Rendering,
@@ -189,7 +181,7 @@ To check the installation is successful until this point:
 ```
 source /opt/ros/humble/setup.bash
 cd ~/workspace/project_pegasus_isaac_sim
-$ISAACSIM_PYTHON ./scripts/drone_camera_lidar_isaac_sim.py
+$ISAACSIM_PYTHON ./scripts/isaac_sim_run.py
 ```
 Now the simulation with Pegasus Simulator and Isaac Sim will be running. Run now QGroundControl:
 ```
@@ -237,7 +229,7 @@ colcon build
 ```
 
 ## Config [WIP]
-Currently, the environment can be changed in `scripts/drone_camera_lidar_isaac_sim.py`, in the line:
+Currently, the environment can be changed in `scripts/isaac_sim_run.py`, in the line:
 ```
 # Launch one of the worlds provided by NVIDIA
 self.pg.load_environment(SIMULATION_ENVIRONMENTS["Warehouse with Shelves"])
@@ -253,7 +245,7 @@ Open a terminal and launch Isaac Sim simulation:
 ```
 source /opt/ros/humble/setup.bash
 cd ~/workspace/project_pegasus_isaac_sim
-$ISAACSIM_PYTHON scripts/drone_camera_lidar_isaac_sim.py --px4_dir <root_to_px4>/PX4-Autopilot
+$ISAACSIM_PYTHON scripts/isaac_sim_run.py --px4_dir <root_to_px4>/PX4-Autopilot
 ```
 
 Open another terminal and launch Micro XRCE-DDS Client:
@@ -270,6 +262,8 @@ source /opt/ros/humble/setup.bash
 source ~/workspace/as2_platform_pixhawk_ws/install/setup.bash
 cd ~/workspace/project_pegasus_isaac_sim
 ./launch_as2.bash -n drone1
+OR using swarm and custom world config, with auto started MicroXRCEAgent:
+./launch_as2.bash -x -m --config ./config/custom_world_swarm.yaml
 ```
 
 Now, you can teleoperate manually the drone in Isaac Sim, follow the instructions in the graphical interface that appeared. There are many topics being published, including RGB camera and LIDAR.
@@ -290,6 +284,10 @@ There are several missions that can be executed:
 - **AS2 Python API single drone mission**: You can execute a mission that used AS2 Python API, launching the mission with:
   ```bash
   python3 mission.py -n drone1
+  ```
+- **AS2 Python API multi-drone mission**: You can execute a mission that used AS2 Python API, launching the mission with:
+  ```bash
+  python3 mission_swarm.py
   ```
 - **AS2 Python API single drone mission using GPS**: You can execute a mission that used AS2 Python API with GPS, launching the mission with:
   ```bash
