@@ -10,6 +10,10 @@ px4:
   autolaunch: true
   enable_lockstep: false
 
+simulation:
+  physics_hz: 250
+  render_hz: 50
+
 origin: 
     latitude: 40.337494
     longitude: -3.883197

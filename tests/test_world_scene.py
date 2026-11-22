@@ -37,6 +37,12 @@ class SceneTests(unittest.TestCase):
         omni.graph.core = graph
         viewport = types.ModuleType("omni.kit.viewport.utility")
         viewport.get_active_viewport = MagicMock()
+        carb = types.ModuleType('carb')
+        carb.settings = MagicMock()
+        rendering = types.ModuleType('isaacsim.core.rendering_manager')
+        rendering.RenderingManager = MagicMock()
+        simulation = types.ModuleType('isaacsim.core.simulation_manager')
+        simulation.SimulationManager = MagicMock()
         params = types.ModuleType('pegasus.simulator.params')
         params.ROBOTS = {'Iris': '/assets/iris.usd'}
         params.SIMULATION_ENVIRONMENTS = {}
@@ -45,7 +51,7 @@ class SceneTests(unittest.TestCase):
         vehicles = types.ModuleType('pegasus.simulator.logic.vehicles.multirotor')
         vehicles.MultirotorConfig = lambda: types.SimpleNamespace()
         vehicles.Multirotor = MagicMock()
-        modules = {'omni.graph': omni.graph, 'omni.graph.core': graph, 'omni.kit.viewport.utility': viewport, 'omni': omni, 'omni.usd': omni.usd, 'omni.timeline': omni.timeline,
+        modules = {'carb': carb, rendering.__name__: rendering, simulation.__name__: simulation, 'omni.graph': omni.graph, 'omni.graph.core': graph, 'omni.kit.viewport.utility': viewport, 'omni': omni, 'omni.usd': omni.usd, 'omni.timeline': omni.timeline,
                    'pxr': pxr, params.__name__: params, interface.__name__: interface,
                    vehicles.__name__: vehicles}
         with patch.dict(sys.modules, modules):
@@ -55,6 +61,10 @@ class SceneTests(unittest.TestCase):
             with patch.object(scene, 'create_empty_world') as ground, \
                  patch.object(scene, 'create_clock') as clock:
                 drones, follow = scene.build_scene(MagicMock(), args)
+        simulation.SimulationManager.setup_simulation.assert_called_once_with(dt=1.0 / 250)
+        rendering.RenderingManager.set_dt.assert_called_once_with(1.0 / 50)
+        carb.settings.get_settings.return_value.set_float.assert_called_once_with(
+            '/persistent/simulation/minFrameRate', 50.0)
         self.assertEqual(len(drones), 3)
         calls = vehicles.Multirotor.call_args_list
         self.assertEqual([c.args[0] for c in calls], ['/World/drone0', '/World/drone1', '/World/drone2'])

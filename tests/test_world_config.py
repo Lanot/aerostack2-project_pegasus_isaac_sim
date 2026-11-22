@@ -94,6 +94,19 @@ class WorldTests(unittest.TestCase):
             self.assertFalse(args.no_lidar)
             self.assertEqual(args.world['drones'][0]['xyz'], [3., 0., .07])
 
+    def test_simulation_rates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write_world(directory, [{'model_name': 'a'}])
+            self.assertEqual(load_world(path)['simulation'], {'physics_hz': 250, 'render_hz': 50})
+            path = self.write_world(directory, [{'model_name': 'a'}],
+                                    simulation={'physics_hz': 200, 'render_hz': 25})
+            self.assertEqual(load_world(path)['simulation']['render_hz'], 25)
+            for value in (False, {'physics_hz': 0}, {'render_hz': -1},
+                          {'physics_hz': True}, {'render_hz': float('nan')},
+                          {'physics_hz': 50, 'render_hz': 100}):
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    load_world(self.write_world(directory, [{'model_name': 'a'}], simulation=value))
+
     def test_lockstep_defaults_to_true_and_can_be_disabled(self):
         with tempfile.TemporaryDirectory() as directory:
             path = self.write_world(directory, [{'model_name': 'a'}])

@@ -13,6 +13,7 @@ from pathlib import Path
 
 import yaml
 
+from simulation_performance import SimulationPerformance
 from world_config import PROJECT_ROOT, load_world, payloads
 
 
@@ -108,6 +109,7 @@ def main(argv=None):
     SimulationApp = import_module('isaacsim').SimulationApp
     app = SimulationApp({
         'headless': args.headless,
+        'disable_viewport_updates': args.headless,
         'extra_args': ['--ext-folder', str(args.pegasus_dir / 'extensions')],
     })
     timeline = None
@@ -136,6 +138,7 @@ def main(argv=None):
         scene = import_module('isaacsim_scene')
         drones, follow_camera = scene.build_scene(app, args, following=following)
         timeline.play()
+        performance = SimulationPerformance(scene.simulation_counters)
         steps = 0
 
         while app.is_running() and (not args.max_steps or steps < args.max_steps):
@@ -143,6 +146,7 @@ def main(argv=None):
             if follow_camera is not None:
                 follow_camera.update()
             steps += 1
+            performance.sample()
         print(f'PEGASUS_RUN_COMPLETE steps={steps}', flush=True)
 
     finally:

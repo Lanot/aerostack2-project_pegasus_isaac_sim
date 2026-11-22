@@ -53,6 +53,17 @@ def load_world(filename):
     if not isinstance(px4['model'], str) or not px4['model']:
         raise ValueError('px4.model must be a nonempty string')
 
+    simulation = result.setdefault('simulation', {})
+    if not isinstance(simulation, dict):
+        raise ValueError('simulation must be a mapping')
+    for key, default in (('physics_hz', 250), ('render_hz', 50)):
+        simulation.setdefault(key, default)
+        value = simulation[key]
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ValueError(f'simulation.{key} must be a positive integer')
+    if simulation['render_hz'] > simulation['physics_hz']:
+        raise ValueError('simulation.render_hz must not exceed physics_hz')
+
     if 'origin' in config:
         origin = config['origin']
         if not isinstance(origin, dict):

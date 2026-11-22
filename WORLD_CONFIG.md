@@ -225,3 +225,28 @@ bash launch_as2.bash -m -x --headless --no-follow-camera --no-attach
 when launching the simulator directly: `bash launch_isaacsim.bash -m --headless`.
 With `-s`, AS2 does not launch a simulator, so this option has no effect on an
 already running simulator.
+
+## Physics and application timing
+
+The launcher explicitly configures physics and timeline/app timing before Play,
+with defaults matching this optional world section:
+
+```yaml
+simulation:
+  physics_hz: 250
+  render_hz: 50
+```
+
+Physics remains at 250 Hz in simulated time. Each app update advances a nominal
+20 ms with a budget of five 4 ms physics substeps. The app loop is rate-limited
+to 50 Hz; the PhysX minimum-frame-rate clamp is set to that same value. This
+replaces the previously implicit timeline timing. Actual sensor render rates
+still depend on payload configuration and scheduling. `--headless` also disables
+viewport updates. Custom-world timeline timing is overridden intentionally.
+
+Every five wall-clock seconds, `SIM_PERF` logs measured RTF, physics steps per
+wall-clock second, app updates per wall-clock second and physics steps per update.
+`SIM_TIMING` reports requested rates at startup. For the default configuration,
+RTF near 1, physics_hz near 250 and app_hz near 50 indicate real-time progress.
+A timing configuration does not guarantee the hardware achieves those rates;
+compare measurements before missions. Pauses and startup affect the first sample.

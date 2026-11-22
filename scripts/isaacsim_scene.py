@@ -9,7 +9,10 @@ import math
 import numpy as np
 from scipy.spatial.transform import Rotation
 
+import carb
 import omni.graph.core as og
+from isaacsim.core.rendering_manager import RenderingManager
+from isaacsim.core.simulation_manager import SimulationManager
 import omni.usd
 from omni.kit.viewport.utility import get_active_viewport
 from pxr import Gf, UsdGeom, UsdLux, UsdPhysics
@@ -122,6 +125,17 @@ def build_scene(app, args, following=False):
     pg = PegasusInterface()
     pg.initialize_world()
 
+    # Physics rate alone does not configure Kit's timeline/run-loop cadence.
+    rates = args.world['simulation']
+    settings = carb.settings.get_settings()
+    settings.set_bool('/app/runLoops/main/rateLimitEnabled', True)
+    # Allow the full physics-step budget for each application tick.
+    settings.set_float('/persistent/simulation/minFrameRate', float(rates['render_hz']))
+    SimulationManager.setup_simulation(dt=1.0 / rates['physics_hz'])
+    RenderingManager.set_dt(1.0 / rates['render_hz'])
+    print(f"SIM_TIMING physics_hz={rates['physics_hz']} render_hz={rates['render_hz']} "
+          f"physics_steps_per_update={rates['physics_hz'] / rates['render_hz']:.2f}", flush=True)
+
     if not args.world_usd and args.environment.lower() not in ('none', 'empty'):
         if args.environment not in SIMULATION_ENVIRONMENTS:
             raise ValueError(f'Unknown environment {args.environment!r}; '
@@ -226,3 +240,8 @@ def spawn_vehicle(app, args, spec, following, context):
                       Rotation.from_euler('xyz', spec['rpy']).as_quat(), config=config)
 
 
+
+
+def simulation_counters():
+    """Physics time/step counters, independent of viewport and ROS publication rates."""
+    return SimulationManager.get_simulation_time(), SimulationManager.get_num_physics_steps()

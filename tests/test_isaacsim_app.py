@@ -48,7 +48,7 @@ class LauncherTests(unittest.TestCase):
             args = launcher.parse_arguments(['--pegasus-dir', directory, '--config', str(world)])
             self.assertTrue(args.no_px4)
 
-    def run_mocked_app(self, *, fail_extension=False, scene_error=None):
+    def run_mocked_app(self, *, fail_extension=False, scene_error=None, headless=False):
         app = MagicMock()
         app.is_running.return_value = True
         manager = MagicMock()
@@ -64,13 +64,14 @@ class LauncherTests(unittest.TestCase):
         omni.timeline = types.ModuleType('omni.timeline')
         omni.timeline.get_timeline_interface = MagicMock(return_value=timeline)
         scene_module = types.ModuleType('isaacsim_scene')
+        scene_module.simulation_counters = MagicMock(return_value=(0.0, 0))
         follow = MagicMock()
         scene_module.build_scene = MagicMock(side_effect=scene_error, return_value=(MagicMock(), follow))
         modules = {'isaacsim_scene': scene_module, 'isaacsim': isaacsim, 'omni': omni, 'omni.kit': omni.kit,
                    'omni.kit.app': omni.kit.app, 'omni.timeline': omni.timeline}
         args = types.SimpleNamespace(
             no_px4=True, no_px4_autolaunch=False, pegasus_dir=Path('/fake/PegasusSimulator'),
-            headless=False, print_config=False, follow_camera=True, no_camera=False, no_lidar=False, no_ros2=False, max_steps=2,
+            headless=headless, print_config=False, follow_camera=True, no_camera=False, no_lidar=False, no_ros2=False, max_steps=2,
         )
         def import_after_startup(name):
             if name != 'isaacsim':
@@ -102,12 +103,17 @@ class LauncherTests(unittest.TestCase):
         # Bootstrap update, two loop updates and three stop-callback updates.
         self.assertEqual(app.update.call_count, 6)
         self.assertEqual(app.mock_calls[-1], unittest.mock.call.close())
-        self.assertTrue(constructor.call_args.args[0]['headless'])
+        self.assertFalse(constructor.call_args.args[0]['headless'])
         self.assertEqual(constructor.call_args.args[0]['extra_args'],
                          ['--ext-folder', '/fake/PegasusSimulator/extensions'])
         self.assertIn(unittest.mock.call('isaacsim.sensors.experimental.rtx', True),
                       manager.set_extension_enabled_immediate.call_args_list)
         self.assertTrue(scene.call_args.kwargs['following'])
+
+    def test_headless_disables_viewport_updates(self):
+        _, _, _, constructor, _, _ = self.run_mocked_app(headless=True)
+        self.assertTrue(constructor.call_args.args[0]['headless'])
+        self.assertTrue(constructor.call_args.args[0]['disable_viewport_updates'])
 
     def test_failed_extension_closes_kit_without_building_scene(self):
         app, manager, timeline, constructor, scene, follow = self.run_mocked_app(
