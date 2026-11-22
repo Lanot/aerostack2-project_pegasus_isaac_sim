@@ -26,17 +26,22 @@ def load_world(filename):
         config = yaml.safe_load(stream)
     if not isinstance(config, dict) or not isinstance(config.get('drones'), list) or not config['drones']:
         raise ValueError('World config must contain a nonempty drones list')
+
     result = copy.deepcopy(config)
     result['config_file'] = str(path)
+
     result['world_name'] = config.get('world_name', 'empty')
     if not isinstance(result['world_name'], str):
         raise ValueError('world_name must be a string')
+
     for key, default in (('ros2', True), ('follow_camera', False)):
         result.setdefault(key, default)
         if not isinstance(result[key], bool):
             raise ValueError(f'{key} must be a boolean')
+
     if 'environment' in result and not isinstance(result['environment'], str):
         raise ValueError('environment must be a string')
+
     px4 = result.setdefault('px4', {})
     if not isinstance(px4, dict):
         raise ValueError('px4 must be a mapping')
@@ -47,6 +52,7 @@ def load_world(filename):
     px4.setdefault('model', 'gazebo-classic_iris')
     if not isinstance(px4['model'], str) or not px4['model']:
         raise ValueError('px4.model must be a nonempty string')
+
     if 'origin' in config:
         origin = config['origin']
         if not isinstance(origin, dict):
@@ -55,6 +61,7 @@ def load_world(filename):
         if not -90 <= values[0] <= 90 or not -180 <= values[1] <= 180:
             raise ValueError('Invalid geographic origin')
         result['origin'] = dict(zip(('latitude', 'longitude', 'altitude'), values))
+
     if config.get('world_usd'):
         usd = config['world_usd']
         if not isinstance(usd, str):
@@ -67,6 +74,7 @@ def load_world(filename):
             if not Path(usd).is_file():
                 raise ValueError(f'World USD not found: {usd}')
         result['world_usd'] = usd
+
     if 'scene_camera_view' in result:
         view = result['scene_camera_view']
         if not isinstance(view, dict):
@@ -75,6 +83,7 @@ def load_world(filename):
         view['target'] = vector(view.get('target'), 'scene_camera_view.target')
         if view['eye'] == view['target']:
             raise ValueError('Camera eye and target must differ')
+
     names, instances = set(), set()
     for index, drone in enumerate(result['drones']):
         if not isinstance(drone, dict):
@@ -106,8 +115,10 @@ def load_world(filename):
             if not usd.is_file():
                 raise ValueError(f'Drone USD not found: {usd}')
             drone['usd_path'] = str(usd.resolve())
+
     if 'follow_drone' in result and (not isinstance(result['follow_drone'], str) or result['follow_drone'] not in names):
         raise ValueError('follow_drone must name a configured drone')
+
     return result
 
 
@@ -128,6 +139,7 @@ def payloads(drone):
                 yield item
             else:
                 raise ValueError(f'Unsupported Pegasus payload model_type: {kind}')
+
     return list(visit(drone.get('payload', [])))
 
 
@@ -136,6 +148,7 @@ def platform_config(world, name, base_file):
     drone = next((d for d in world['drones'] if d['model_name'] == name), None)
     if drone is None:
         raise ValueError(f'Drone {name!r} is not in the world config')
+
     with Path(base_file).open() as stream:
         base = yaml.safe_load(stream) or {}
     common = base.get('/**', {})
@@ -143,6 +156,7 @@ def platform_config(world, name, base_file):
     params.update(common.get('platform', {}).get('ros__parameters', {}))
     params.update(base.get(name, {}).get('platform', {}).get('ros__parameters', {}))
     params.update(fmu_prefix='/' + name, target_system_id=drone['instance'] + 1, use_sim_time=True)
+
     return {'/**': {'ros__parameters': params}}
 
 
@@ -154,6 +168,7 @@ def main():
     parser.add_argument('--base-config', default=str(PROJECT_ROOT / 'config/config.yaml'))
     parser.add_argument('--output')
     args = parser.parse_args()
+
     try:
         world = load_world(args.config)
         if args.platform_config:
@@ -164,6 +179,7 @@ def main():
             print(','.join(d['model_name'] for d in world['drones']))
         else:
             print(json.dumps(world, indent=2))
+
     except (ValueError, OSError, yaml.YAMLError) as error:
         parser.error(str(error))
 

@@ -29,6 +29,14 @@ class SceneTests(unittest.TestCase):
         omni.timeline = types.ModuleType('omni.timeline')
         pxr = types.ModuleType('pxr')
         pxr.UsdGeom = MagicMock()
+        pxr.Gf = MagicMock()
+        pxr.UsdLux = MagicMock()
+        pxr.UsdPhysics = MagicMock()
+        omni.graph = types.ModuleType("omni.graph")
+        graph = types.ModuleType("omni.graph.core")
+        omni.graph.core = graph
+        viewport = types.ModuleType("omni.kit.viewport.utility")
+        viewport.get_active_viewport = MagicMock()
         params = types.ModuleType('pegasus.simulator.params')
         params.ROBOTS = {'Iris': '/assets/iris.usd'}
         params.SIMULATION_ENVIRONMENTS = {}
@@ -37,13 +45,16 @@ class SceneTests(unittest.TestCase):
         vehicles = types.ModuleType('pegasus.simulator.logic.vehicles.multirotor')
         vehicles.MultirotorConfig = lambda: types.SimpleNamespace()
         vehicles.Multirotor = MagicMock()
-        modules = {'omni': omni, 'omni.usd': omni.usd, 'omni.timeline': omni.timeline,
+        modules = {'omni.graph': omni.graph, 'omni.graph.core': graph, 'omni.kit.viewport.utility': viewport, 'omni': omni, 'omni.usd': omni.usd, 'omni.timeline': omni.timeline,
                    'pxr': pxr, params.__name__: params, interface.__name__: interface,
                    vehicles.__name__: vehicles}
-        with patch.dict(sys.modules, modules), \
-             patch.object(launcher, 'create_empty_world') as ground, \
-             patch.object(launcher, 'create_clock') as clock:
-            drones, follow = launcher.build_scene(MagicMock(), args)
+        with patch.dict(sys.modules, modules):
+            spec = importlib.util.spec_from_file_location('isaacsim_scene', ROOT / 'scripts/isaacsim_scene.py')
+            scene = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(scene)
+            with patch.object(scene, 'create_empty_world') as ground, \
+                 patch.object(scene, 'create_clock') as clock:
+                drones, follow = scene.build_scene(MagicMock(), args)
         self.assertEqual(len(drones), 3)
         calls = vehicles.Multirotor.call_args_list
         self.assertEqual([c.args[0] for c in calls], ['/World/drone0', '/World/drone1', '/World/drone2'])

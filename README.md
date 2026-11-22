@@ -22,7 +22,8 @@ The standalone entrypoint now targets the `dev_6.0.1_custom` Pegasus port.
 It uses `PegasusInterface.initialize_world()`, Kit updates and timeline callbacks;
 there is no dependency on the removed `omni.isaac.core.World` API. Enablement of
 Pegasus and the ROS bridge is explicit, so no saved Isaac Sim GUI settings are needed.
-The entrypoint delegates to `scripts/isaacsim_app.py`; a following camera selected
+The entrypoint delegates to `scripts/isaacsim_app.py`, which loads
+`scripts/isaacsim_scene.py` after Kit and extension startup; a following camera selected
 through YAML or `--follow-camera` tracks live Pegasus physics state.
 
 Prerequisites:

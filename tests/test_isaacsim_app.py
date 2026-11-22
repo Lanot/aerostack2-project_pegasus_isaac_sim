@@ -1,4 +1,5 @@
 """Offline launcher regressions; GPU/sensor/flight checks are documented in README."""
+import ast
 import importlib.util
 from pathlib import Path
 import subprocess
@@ -15,6 +16,12 @@ spec.loader.exec_module(launcher)
 
 
 class LauncherTests(unittest.TestCase):
+    def test_launcher_import_statements_are_all_at_module_top(self):
+        tree = ast.parse((ROOT / 'isaacsim_app.py').read_text())
+        top_imports = {id(node) for node in tree.body if isinstance(node, (ast.Import, ast.ImportFrom))}
+        all_imports = {id(node) for node in ast.walk(tree) if isinstance(node, (ast.Import, ast.ImportFrom))}
+        self.assertEqual(all_imports, top_imports)
+
     def test_entrypoint_help_without_isaacsim(self):
         result = subprocess.run(
             [sys.executable, str(ROOT / 'isaac_sim_run.py'), '--help'],
@@ -55,17 +62,29 @@ class LauncherTests(unittest.TestCase):
         omni.kit.app.get_app.return_value.get_extension_manager.return_value = manager
         omni.timeline = types.ModuleType('omni.timeline')
         omni.timeline.get_timeline_interface = MagicMock(return_value=timeline)
-        modules = {'isaacsim': isaacsim, 'omni': omni, 'omni.kit': omni.kit,
+        scene_module = types.ModuleType('isaacsim_scene')
+        follow = MagicMock()
+        scene_module.build_scene = MagicMock(side_effect=scene_error, return_value=(MagicMock(), follow))
+        modules = {'isaacsim_scene': scene_module, 'isaacsim': isaacsim, 'omni': omni, 'omni.kit': omni.kit,
                    'omni.kit.app': omni.kit.app, 'omni.timeline': omni.timeline}
         args = types.SimpleNamespace(
             no_px4=True, no_px4_autolaunch=False, pegasus_dir=Path('/fake/PegasusSimulator'),
             headless=True, print_config=False, follow_camera=True, no_camera=False, no_lidar=False, no_ros2=False, max_steps=2,
         )
-        follow = MagicMock()
+        def import_after_startup(name):
+            if name != 'isaacsim':
+                isaacsim.SimulationApp.assert_called_once()
+            if name == 'isaacsim_scene':
+                self.assertTrue(app.update.called)
+                for extension in ('pegasus.simulator', 'isaacsim.ros2.bridge'):
+                    self.assertIn(unittest.mock.call(extension, True),
+                                  manager.set_extension_enabled_immediate.call_args_list)
+            return modules[name]
+
         with patch.dict(sys.modules, modules), \
-             patch.object(launcher, 'parse_arguments', return_value=args), \
-             patch.object(launcher, 'build_scene', side_effect=scene_error,
-                          return_value=(MagicMock(), follow)) as scene:
+             patch.object(launcher, 'import_module', side_effect=import_after_startup), \
+             patch.object(launcher, 'parse_arguments', return_value=args):
+            scene = scene_module.build_scene
             if fail_extension or scene_error:
                 with self.assertRaises(RuntimeError):
                     launcher.main()
