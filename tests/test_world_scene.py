@@ -98,6 +98,19 @@ class SceneTests(unittest.TestCase):
                 self.assertEqual([c.kwargs['namespace'] for c in backend_calls],
                                  ['drone0', 'drone1', 'drone2'])
 
+        camera_module = types.ModuleType('pegasus.simulator.logic.graphical_sensors.monocular_camera')
+        camera_module.MonocularCamera = MagicMock()
+        args.no_px4 = True
+        args.no_camera = False
+        sensor = {'model_type': 'camera', 'model_name': 'front'}
+        drone = dict(args.world['drones'][0], _payloads=[sensor])
+        with patch.dict(sys.modules, {camera_module.__name__: camera_module}):
+            scene.spawn_vehicle(MagicMock(), args, drone, False, context)
+            self.assertEqual(camera_module.MonocularCamera.call_args.kwargs['config']['frequency'], 25)
+            sensor['config'] = {'frequency': 10, 'resolution': [640, 480]}
+            scene.spawn_vehicle(MagicMock(), args, drone, False, context)
+            self.assertEqual(camera_module.MonocularCamera.call_args.kwargs['config']['frequency'], 10)
+            self.assertEqual(camera_module.MonocularCamera.call_args.kwargs['config']['resolution'], [640, 480])
 
 
 if __name__ == '__main__':

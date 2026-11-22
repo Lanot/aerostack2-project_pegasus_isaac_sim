@@ -39,7 +39,7 @@ drones:
         model_name: gps
       - model_type: hd_camera
         model_name: camera
-        config: {frequency: 30, resolution: [1280, 720]}
+        config: {frequency: 25, resolution: [1280, 720]}
       - model_type: lidar
         model_name: lidar
         config: {sensor_configuration: Example_Rotary}
@@ -279,3 +279,15 @@ headless behavior. The stage-loading wait covers USD assets; Cesium streams tile
 asynchronously afterward. This does not establish a terrain-collision readiness
 gate or align the stage georeference with Pegasus's GPS origin. Empty-world
 configs load no Cesium extensions.
+
+## Camera rate compatibility
+
+The current Pegasus camera uses Isaac Sim's legacy `Camera` API, which requires
+`payload.config.frequency` to divide `simulation.render_hz`. With 50 Hz rendering,
+use 25, 10, 5 or 50 Hz. A requested 30 or 60 Hz is incompatible with 50 Hz rendering.
+For a 30 Hz camera, use a compatible render rate such as 60 Hz instead.
+
+When frequency is omitted, the launcher chooses the largest divisor of the render
+rate up to 30 Hz (25 Hz at 50 Hz rendering). Explicit rates are validated before
+starting Kit, including cameras nested inside gimbal payloads. This applies even
+without ROS publishers because camera rendering still uses the same API.

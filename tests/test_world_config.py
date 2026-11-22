@@ -11,7 +11,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
-from world_config import load_world, platform_config
+from world_config import camera_frequency, load_world, platform_config
 
 
 class WorldTests(unittest.TestCase):
@@ -108,6 +108,23 @@ class WorldTests(unittest.TestCase):
                             {'extension_paths': [False]}, {'extension_paths': ['missing']}):
                 with self.subTest(options=options), self.assertRaises(ValueError):
                     load_world(self.write_world(directory, [{'model_name': 'a'}], **options))
+
+    def test_camera_rate_defaults_and_explicit_nested_payloads(self):
+        self.assertEqual(camera_frequency({}, 50, 'a'), 25)
+        self.assertEqual(camera_frequency({}, 60, 'a'), 30)
+        self.assertEqual(camera_frequency({}, 20, 'a'), 20)
+        with tempfile.TemporaryDirectory() as directory:
+            for rate in (5, 10, 25, 50):
+                sensor = {'model_type': 'hd_camera', 'model_name': 'front',
+                          'config': {'frequency': rate}}
+                drone = {'model_name': 'a', 'payload': [
+                    {'model_type': 'gimbal_speed', 'payload': sensor}]}
+                world = load_world(self.write_world(directory, [drone]))
+                self.assertEqual(world['drones'][0]['payload'][0]['payload']['config']['frequency'], rate)
+            for rate in (60, 30, 0, -1, True, '25', float('nan'), 12.5):
+                sensor = {'model_type': 'camera', 'config': {'frequency': rate}}
+                with self.subTest(rate=rate), self.assertRaisesRegex(ValueError, 'a/camera'):
+                    load_world(self.write_world(directory, [{'model_name': 'a', 'payload': [sensor]}]))
 
     def test_simulation_rates(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -163,10 +163,15 @@ def load_world(filename):
     if 'follow_drone' in result and (not isinstance(result['follow_drone'], str) or result['follow_drone'] not in names):
         raise ValueError('follow_drone must name a configured drone')
 
+    # Validate camera timing before Kit starts, including nested gimbal payloads.
+    for drone in result['drones']:
+        for sensor in payloads(drone, warn_gimbals=False):
+            if sensor['model_type'] in ('hd_camera', 'camera', 'monocular_camera'):
+                camera_frequency(sensor, result['simulation']['render_hz'], drone['model_name'])
     return result
 
 
-def payloads(drone):
+def payloads(drone, *, warn_gimbals=True):
     """Flatten nested Gazebo gimbal payloads, retaining their fixed sensors."""
     def visit(items):
         for item in items:
@@ -176,7 +181,8 @@ def payloads(drone):
             if not isinstance(kind, str):
                 raise ValueError('Each payload needs model_type')
             if kind in ('gimbal_speed', 'gimbal_position'):
-                warnings.warn(f'{drone["model_name"]}: {kind} is a fixed camera mount in Pegasus; no gimbal actuation')
+                if warn_gimbals:
+                    warnings.warn(f'{drone["model_name"]}: {kind} is a fixed camera mount in Pegasus; no gimbal actuation')
                 child = item.get('payload', [])
                 yield from visit([child] if isinstance(child, dict) else child)
             elif kind in ('gps', 'hd_camera', 'camera', 'monocular_camera', 'lidar', 'lidar3d', 'gpu_lidar'):
@@ -185,6 +191,26 @@ def payloads(drone):
                 raise ValueError(f'Unsupported Pegasus payload model_type: {kind}')
 
     return list(visit(drone.get('payload', [])))
+
+
+def camera_frequency(sensor, render_hz, drone_name):
+    """Choose a valid default, or reject an incompatible explicit camera rate."""
+    settings = sensor.get('config', {})
+    name = f"{drone_name}/{sensor.get('model_name', 'camera')}"
+    if not isinstance(settings, dict):
+        raise ValueError(f'{name}: camera config must be a mapping')
+    # Highest divisor up to 30 Hz: 25 Hz at 50 Hz rendering, 30 Hz at 60 Hz.
+    default = max(rate for rate in range(1, min(30, render_hz) + 1) if render_hz % rate == 0)
+    rate = settings.get('frequency', default)
+    if (isinstance(rate, bool) or not isinstance(rate, (int, float))
+            or not math.isfinite(rate) or rate <= 0 or int(rate) != rate):
+        raise ValueError(f'{name}: camera frequency must be a positive integer in Hz')
+    rate = int(rate)
+    if render_hz % rate:
+        raise ValueError(f'{name}: camera frequency {rate} Hz must divide simulation.render_hz '
+                         f'({render_hz} Hz). At 50 Hz use 25, 10 or 5 Hz; '
+                         'for a 30 Hz camera use a compatible render_hz such as 60.')
+    return rate
 
 
 def platform_config(world, name, base_file):

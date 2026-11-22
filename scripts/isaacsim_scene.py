@@ -6,6 +6,8 @@ require unused extensions.
 """
 import math
 
+from world_config import camera_frequency
+
 import numpy as np
 from scipy.spatial.transform import Rotation
 
@@ -197,7 +199,8 @@ def spawn_vehicle(app, args, spec, following, context):
         from pegasus.simulator.logic.graphical_sensors.monocular_camera import MonocularCamera
 
         # The Pegasus API uses frequency, not update_rate.
-        camera_config = {'frequency': 60}
+        camera_config = {'frequency': camera_frequency(
+            sensor, args.world['simulation']['render_hz'], spec['model_name'])}
         if following:
             camera_config.update(FOLLOWING_CAMERA_PARAMS)
 
