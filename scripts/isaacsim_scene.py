@@ -6,6 +6,7 @@ require unused extensions.
 """
 import math
 
+from callback_profiler import profiled_vehicle_class, profile_backend
 from world_config import camera_frequency
 
 import numpy as np
@@ -244,7 +245,13 @@ def spawn_vehicle(app, args, spec, following, context):
     model = {'quadrotor_base': 'Iris', 'iris': 'Iris'}.get(model, model)
     if not spec.get('usd_path') and model not in ROBOTS:
         raise ValueError(f'Unsupported Pegasus drone model {model!r}; set pegasus_model or usd_path')
-    return Multirotor('/World/' + spec['model_name'], spec.get('usd_path') or ROBOTS[model],
+    vehicle_type = Multirotor
+    profiler = getattr(args, 'callback_profiler', None)
+    if profiler is not None:
+        vehicle_type = profiled_vehicle_class(Multirotor, profiler, spec['model_name'])
+        for backend in config.backends:
+            profile_backend(backend, profiler, spec['model_name'])
+    return vehicle_type('/World/' + spec['model_name'], spec.get('usd_path') or ROBOTS[model],
                       spec['instance'], spec['xyz'],
                       Rotation.from_euler('xyz', spec['rpy']).as_quat(), config=config)
 

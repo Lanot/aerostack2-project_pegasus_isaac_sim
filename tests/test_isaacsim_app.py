@@ -50,7 +50,7 @@ class LauncherTests(unittest.TestCase):
             args = launcher.parse_arguments(['--pegasus-dir', directory, '--config', str(world)])
             self.assertTrue(args.no_px4)
 
-    def run_mocked_app(self, *, fail_extension=False, scene_error=None, headless=False, extra_extensions=False):
+    def run_mocked_app(self, *, fail_extension=False, scene_error=None, headless=False, extra_extensions=False, profile=False):
         app = MagicMock()
         app.is_running.return_value = True
         manager = MagicMock()
@@ -86,7 +86,7 @@ class LauncherTests(unittest.TestCase):
                    'omni.kit.app': omni.kit.app, 'omni.timeline': omni.timeline}
         args = types.SimpleNamespace(
             no_px4=True, no_px4_autolaunch=False, pegasus_dir=Path('/fake/PegasusSimulator'),
-            world={'extensions': ['cesium.omniverse'] if extra_extensions else [],
+            world={'simulation': {'profile': profile}, 'extensions': ['cesium.omniverse'] if extra_extensions else [],
                    'extension_paths': ['/extensions/cesium'] if extra_extensions else []},
             headless=headless, print_config=False, follow_camera=True, no_camera=False, no_lidar=False, no_ros2=False, max_steps=2,
         )
@@ -127,6 +127,10 @@ class LauncherTests(unittest.TestCase):
         self.assertIn(unittest.mock.call('isaacsim.sensors.experimental.rtx', True),
                       manager.set_extension_enabled_immediate.call_args_list)
         self.assertTrue(scene.call_args.kwargs['following'])
+
+    def test_profile_is_available_before_vehicle_callbacks_are_registered(self):
+        _, _, _, _, scene, _ = self.run_mocked_app(profile=True)
+        self.assertIsInstance(scene.call_args.args[1].callback_profiler, launcher.CallbackProfiler)
 
     def test_headless_disables_viewport_updates(self):
         _, _, _, constructor, _, _ = self.run_mocked_app(headless=True)

@@ -61,6 +61,9 @@ def load_world(filename):
         value = simulation[key]
         if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
             raise ValueError(f'simulation.{key} must be a positive integer')
+    simulation.setdefault('profile', False)
+    if not isinstance(simulation['profile'], bool):
+        raise ValueError('simulation.profile must be a boolean')
     if simulation['render_hz'] > simulation['physics_hz']:
         raise ValueError('simulation.render_hz must not exceed physics_hz')
 

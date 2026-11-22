@@ -129,11 +129,11 @@ class WorldTests(unittest.TestCase):
     def test_simulation_rates(self):
         with tempfile.TemporaryDirectory() as directory:
             path = self.write_world(directory, [{'model_name': 'a'}])
-            self.assertEqual(load_world(path)['simulation'], {'physics_hz': 250, 'render_hz': 50})
+            self.assertEqual(load_world(path)['simulation'], {'physics_hz': 250, 'render_hz': 50, 'profile': False})
             path = self.write_world(directory, [{'model_name': 'a'}],
                                     simulation={'physics_hz': 200, 'render_hz': 25})
             self.assertEqual(load_world(path)['simulation']['render_hz'], 25)
-            for value in (False, {'physics_hz': 0}, {'render_hz': -1},
+            for value in (False, {'profile': 'true'}, {'physics_hz': 0}, {'render_hz': -1},
                           {'physics_hz': True}, {'render_hz': float('nan')},
                           {'physics_hz': 50, 'render_hz': 100}):
                 with self.subTest(value=value), self.assertRaises(ValueError):

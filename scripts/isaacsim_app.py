@@ -15,6 +15,7 @@ from pathlib import Path
 
 import yaml
 
+from callback_profiler import CallbackProfiler
 from simulation_performance import SimulationPerformance
 from world_config import PROJECT_ROOT, load_world, payloads
 
@@ -157,6 +158,7 @@ def main(argv=None):
         # Load scene dependencies only after Kit and the requested extensions.
         phase = 'loading scene module'
         scene = import_module('isaacsim_scene')
+        args.callback_profiler = (CallbackProfiler() if args.world.get('simulation', {}).get('profile', False) else None)
         phase = 'building world and spawning vehicles'
         drones, follow_camera = scene.build_scene(app, args, following=following)
         phase = 'starting physics'
@@ -168,11 +170,16 @@ def main(argv=None):
         phase = 'running simulation'
         print('[AS2] Entering simulation loop', flush=True)
         while app.is_running() and (not args.max_steps or steps < args.max_steps):
-            app.update()
+            if args.callback_profiler is None:
+                app.update()
+            else:
+                args.callback_profiler.call('app.update', app.update)
             if follow_camera is not None:
                 follow_camera.update()
             steps += 1
             performance.sample()
+            if args.callback_profiler is not None:
+                args.callback_profiler.sample()
         print(f'PEGASUS_RUN_COMPLETE steps={steps}', flush=True)
 
     except KeyboardInterrupt:

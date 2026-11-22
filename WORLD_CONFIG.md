@@ -401,3 +401,29 @@ ros2 run project_pegasus_isaac_sim stream_video_udp --help
 The `stream_video_udp.py` console alias remains supported by existing launchers.
 The package uses `setup.py`, `setup.cfg`, an ament resource marker and an
 `ament_python` export in `package.xml`; no CMake project is required.
+
+## Identify the simulation bottleneck
+
+Enable optional Python callback profiling in the world file:
+
+```yaml
+simulation:
+  physics_hz: 250
+  render_hz: 50
+  profile: true
+```
+
+`profile` defaults to false. Every five wall-clock seconds `SIM_PROFILE` reports
+the twelve largest inclusive callback times, including `app.update`, vehicle
+state reads, force/torque writes, propeller visuals, sensor updates and backend
+updates. `total_ms` is cumulative time in the reporting window; `avg_ms` is per
+call. Nested rows overlap and must not be added together. Times include native
+calls and waits; they are not GPU kernel measurements or CPU-utilization values.
+Callbacks are wrapped before Pegasus registers them, including callbacks that
+Kit dispatches on another Python-capable thread. Profiling adds overhead.
+
+If vehicle callbacks dominate, optimize the identified callback. If `app.update`
+is much larger than the measured callbacks, use Tracy to investigate PhysX,
+rendering, Cesium, driver synchronization and other native work. Keep the same
+world, drone count and settings when comparing changes. Disable profiling again
+for final RTF measurements. No physics rate or force equations change here.

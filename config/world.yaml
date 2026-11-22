@@ -13,6 +13,7 @@ px4:
 simulation:
   physics_hz: 250
   render_hz: 50
+  profile: false
 
 origin: 
     latitude: 40.4405287
