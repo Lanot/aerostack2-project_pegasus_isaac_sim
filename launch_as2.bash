@@ -8,6 +8,8 @@ usage() {
     echo "      -m, --swarm: use config/world_swarm.yaml. Default: config/world.yaml"
     echo "      -w, --config FILE: use a custom world description file"
     echo "      -n, --namespace NAMES: comma-separated drone names. Default: all configured drones"
+    echo "      --video-relay: start ROS UDP relays for configured cameras (default: false)"
+    echo "      --video-relay-host IP: QGC destination (default: 127.0.0.1)"
     echo "      --headless: launch Isaac Sim without its GUI"
     echo "      -s, --no-simulation: do not launch Isaac Sim"
     echo "      -x: launch one Micro XRCE-DDS Agent for all drones"
@@ -29,6 +31,8 @@ simulation_config=""
 drones_namespace_comma=""
 launch_simulation="true"
 headless="false"
+video_relay="false"
+video_relay_host="127.0.0.1"
 micro_xrce_agent="false"
 motion_controller="pid"
 rosbag="false"
@@ -52,6 +56,14 @@ while (($#)); do
             ;;
         -n|--namespace)
             drones_namespace_comma="${2:?Missing drone names}"
+            shift 2
+            ;;
+        --video-relay)
+            video_relay="true"
+            shift
+            ;;
+        --video-relay-host)
+            video_relay_host="${2:?Missing QGC host}"
             shift 2
             ;;
         --headless)
@@ -139,6 +151,14 @@ case "$motion_controller" in
         ;;
 esac
 
+# ROS relays run through the package installed in this sourced workspace.
+if [[ "$video_relay" == "true" ]]; then
+    if ! command -v ros2 >/dev/null || ! ros2 pkg prefix project_pegasus_isaac_sim >/dev/null 2>&1; then
+        echo "[ERROR] [video-relay] Build project_pegasus_isaac_sim with colcon and source install/setup.bash first." >&2
+        exit 2
+    fi
+fi
+
 # Generate each selected drone's PX4 routing before launching any process.
 run_dir="$(mktemp -d /tmp/as2-pegasus-launch.XXXXXX)"
 simulation_log="$run_dir/isaacsim.log"
@@ -161,6 +181,12 @@ for namespace in "${drone_namespaces[@]}"; do
         --platform-config "$namespace" \
         --base-config config/config.yaml \
         --output "$run_dir/$namespace.yaml"
+
+    if [[ "$video_relay" == "true" ]]; then
+        python3 scripts/video_relay_config.py --config "$simulation_config" \
+            --drone "$namespace" --host "$video_relay_host" \
+            --output "$run_dir/$namespace.video.json"
+    fi
 done
 
 # Select between tmux and gnome-terminal.
@@ -189,6 +215,8 @@ for index in "${!drone_namespaces[@]}"; do
         "platform_config_file=$run_dir/$namespace.yaml"
         "base_launch=$base_launch"
         "headless=$headless"
+        "video_relay=$video_relay"
+        "video_relay_config_file=$run_dir/$namespace.video.json"
         "micro_xrce_agent=$launch_agent"
         "motion_controller_plugin=$motion_controller_plugin"
         "rosbag=$rosbag"

@@ -17,6 +17,9 @@ class SceneTests(unittest.TestCase):
     def test_swarm_uses_distinct_paths_positions_instances_and_one_clock(self):
         world = yaml.safe_load((ROOT / 'config/world_swarm.yaml').read_text())
         world.update(px4={'enabled': False}, ros2=False)
+        # Keep the physics fixture independent of cameras added to users' YAML.
+        for drone in world['drones']:
+            drone['payload'] = [{'model_type': 'gps', 'model_name': 'gps'}]
         with tempfile.TemporaryDirectory() as directory:
             config = Path(directory) / 'world.yaml'
             config.write_text(yaml.safe_dump(world))

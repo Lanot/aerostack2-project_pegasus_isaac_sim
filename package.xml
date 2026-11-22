@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>project_pegasus_isaac_sim</name>
+  <version>0.1.0</version>
+  <description>Aerostack2 Pegasus project and ROS camera-to-UDP video relay.</description>
+  <maintainer email="maintainer@example.com">Project maintainer</maintainer>
+  <license>BSD-3-Clause</license>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>python3-gi</exec_depend>
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

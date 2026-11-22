@@ -5,7 +5,7 @@ import types
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('stream_video_udp', ROOT / 'scripts/stream_video_udp.py')
+spec = importlib.util.spec_from_file_location('stream_video_udp', ROOT / 'project_pegasus_isaac_sim/stream_video_udp.py')
 relay = importlib.util.module_from_spec(spec)
 try:
     spec.loader.exec_module(relay)

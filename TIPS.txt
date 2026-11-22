@@ -3,13 +3,19 @@ Inside tmux, press Ctrl+B, release, then press S. Select drone1, drone2, etc. us
 ./launch_as2.bash -m -x --config ./config/custom_world_swarm.yaml
 
 
+SINGLE, no attach:
+./launch_as2.bash -m -x --no-attach --config ./config/custom_world.yaml --video-relay
+tmux ls
+tmux attach -t drone0
+
 SWARM, no attach:
-./launch_as2.bash -m -x --no-attach --config ./config/custom_world_swarm.yaml
+./launch_as2.bash -m -x --no-attach --config ./config/custom_world_swarm.yaml --video-relay
 tmux ls
 tmux attach -t drone0
 tmux attach -t drone1
 tmux attach -t drone2
 
+ros2 run project_pegasus_isaac_sim stream_video_udp --help
 
 
 ./launch_isaacsim.bash --follow-camera

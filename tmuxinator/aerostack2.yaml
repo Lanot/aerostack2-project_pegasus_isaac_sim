@@ -1,6 +1,9 @@
 <%
 require "shellwords"
+require "json"
 # Input parameters
+video_relay = @settings["video_relay"] == "true"
+video_routes = video_relay ? JSON.parse(File.read(@settings["video_relay_config_file"])) : []
 headless = @settings["headless"] == "true"
 simulation_log_file = @settings["simulation_log_file"].to_s
 follow_camera = @settings["follow_camera"].to_s
@@ -41,6 +44,15 @@ windows:
             platform_config_file:="<%= platform_config_file %>"
             
 
+
+  <% unless video_routes.empty? %>
+  - video_relay:
+      layout: tiled
+      panes:
+      <% video_routes.each do |route| %>
+        - ros2 run project_pegasus_isaac_sim stream_video_udp.py --topic <%= route["topic"].shellescape %> --host <%= route["host"].shellescape %> --port <%= route["port"] %> --ros-args -r __node:=video_relay_<%= route["camera"] %> -r __ns:=/<%= route["drone"] %>
+      <% end %>
+  <% end %>
 
   # Basic Robotics Functions
   - basics_robotics_functions:

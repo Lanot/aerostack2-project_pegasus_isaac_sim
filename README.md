@@ -16,6 +16,10 @@ the ground station. `launch_as2.bash` starts the simulator by default (like the
 Gazebo project); use `-s` when it is already running. The default single drone is
 now **drone0**. The older single-drone instructions below are retained as history.
 
+The optional `--video-relay` flag starts ROS video relays for cameras declared in
+the selected world. See [WORLD_CONFIG.md](WORLD_CONFIG.md) for the one-time package
+build, automatic per-drone UDP port allocation and console routing warnings.
+
 ## CUSTOM Isaac Sim 6.x (Ubuntu 24.04 / ROS 2 Jazzy)
 
 The standalone entrypoint now targets the `dev_6.0.1_custom` Pegasus port.

@@ -330,3 +330,74 @@ For another drone, select its image topic and a distinct port such as 5601.
 Select the corresponding port manually in QGC; these independent UDP feeds do
 not automatically follow the selected vehicle or advertise MAVLink cameras.
 The depth topic is not suitable for this color-video relay.
+
+## Automatically relay configured cameras
+
+`launch_as2.bash --video-relay` enables camera relays; it is off by default.
+The project is an `ament_python` package. Its relay implementation lives in
+`project_pegasus_isaac_sim/stream_video_udp.py` and is installed with setuptools
+console entry points. The source-tree script remains a compatibility wrapper.
+Build it once and source the workspace before enabling the flag:
+
+```bash
+cd ~/workspaces/aerostack2_ws
+source /opt/ros/jazzy/setup.bash
+colcon build --symlink-install --packages-select project_pegasus_isaac_sim
+source install/setup.bash
+cd src/project_pegasus_isaac_sim
+bash launch_as2.bash --config config/custom_world_swarm.yaml -x \
+  --video-relay --no-attach
+```
+
+Add `--video-relay-host 192.168.1.20` for QGC on another computer; the default
+is 127.0.0.1. With `-s`, relays still start for a simulator running separately.
+Only the drones selected by `-n` get relay processes. All camera payloads
+(`camera`, `hd_camera`, `monocular_camera`), including nested gimbal cameras,
+are discovered in YAML order; GPS and LiDAR do not consume video ports.
+
+| Drone | Camera indices | UDP ports |
+| --- | --- | --- |
+| drone0 | 0–9 | 5600–5609 |
+| drone1 | 0–9 | 5610–5619 |
+| drone2 | 0–9 | 5620–5629 |
+
+The formula is `5600 + 10 * drone_number + camera_index`. The number comes from
+the `droneN` name, independently of its PX4 instance, YAML order or selected subset.
+For arbitrary drone names, the explicit/default PX4 `instance` supplies the number.
+More than ten cameras, duplicate camera names, overlapping ports and invalid port
+blocks fail before tmux launches. `ros2: false` is incompatible with camera relays.
+Drones without cameras print a warning and get no relay panes.
+
+Each relay runs as, for example:
+
+```bash
+ros2 run project_pegasus_isaac_sim stream_video_udp.py \
+  --topic /drone1/front/color/image_raw --host 127.0.0.1 --port 5610 \
+  --ros-args -r __node:=video_relay_front -r __ns:=/drone1
+```
+
+The image namespace follows `sensor_namespace` when overridden, and each process
+has a unique ROS node name. A `video_relay` window in each drone's tmux session
+holds one pane per camera and follows the session's stop/detach lifecycle.
+The original launch console prints warning-level routing lines such as:
+
+```text
+[WARN] [video-relay] drone0/front: /drone0/front/color/image_raw -> udp://127.0.0.1:5600
+[WARN] [video-relay] drone0/down: /drone0/down/color/image_raw -> udp://127.0.0.1:5601
+[WARN] [video-relay] drone1/front: /drone1/front/color/image_raw -> udp://127.0.0.1:5610
+```
+
+The relay itself also emits a ROS warning with its topic and destination at startup.
+These UDP feeds do not automatically switch when QGC's active drone changes;
+select the desired port in QGC. Relays retain the lightweight 640x360/10 FPS
+software-encoding defaults, so enabling many cameras increases CPU/network load.
+
+The canonical Python ROS entry point is:
+
+```bash
+ros2 run project_pegasus_isaac_sim stream_video_udp --help
+```
+
+The `stream_video_udp.py` console alias remains supported by existing launchers.
+The package uses `setup.py`, `setup.cfg`, an ament resource marker and an
+`ament_python` export in `package.xml`; no CMake project is required.
