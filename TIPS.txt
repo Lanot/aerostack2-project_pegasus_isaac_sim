@@ -51,3 +51,9 @@ param show UXRCE_DDS_DOM_ID
 uxrce_dds_client status
 
 
+world.yaml:
+extension_paths:
+  - "/home/tolik/sim/IsaacSim-Extensions/CesiumGS-cesium-omniverse-linux-x86_64-v0.30.0"
+extensions:
+  - cesium.omniverse
+  - omni.kit.window.script_editor

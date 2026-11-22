@@ -102,18 +102,34 @@ class SceneTests(unittest.TestCase):
                                  ['drone0', 'drone1', 'drone2'])
 
         camera_module = types.ModuleType('pegasus.simulator.logic.graphical_sensors.monocular_camera')
-        camera_module.MonocularCamera = MagicMock()
+
+        class Camera:
+            constructions = []
+            def __init__(self, name, config):
+                self._frequency = config['frequency']
+                self.constructions.append(config)
+            def initialize(self, vehicle):
+                self._stage_prim_path = '/World/drone0/body/front'
+        camera_module.MonocularCamera = Camera
+
         args.no_px4 = True
         args.no_camera = False
         sensor = {'model_type': 'camera', 'model_name': 'front'}
         drone = dict(args.world['drones'][0], _payloads=[sensor])
         with patch.dict(sys.modules, {camera_module.__name__: camera_module}):
             scene.spawn_vehicle(MagicMock(), args, drone, False, context)
-            self.assertEqual(camera_module.MonocularCamera.call_args.kwargs['config']['frequency'], 25)
+            self.assertEqual(Camera.constructions[-1]['frequency'], 25)
+            configured = vehicles.Multirotor.call_args.kwargs['config'].graphical_sensors[0]
+            with patch.dict(sys.modules, {'omni': omni, 'omni.usd': omni.usd}):
+                configured.initialize(MagicMock())
+            prim = context.get_stage.return_value.GetPrimAtPath.return_value
+            prim.ApplyAPI.assert_called_once_with('OmniSensorAPI')
+            prim.GetAttribute.assert_called_once_with('omni:sensor:tickRate')
+            prim.GetAttribute.return_value.Set.assert_called_once_with(25.0)
             sensor['config'] = {'frequency': 10, 'resolution': [640, 480]}
             scene.spawn_vehicle(MagicMock(), args, drone, False, context)
-            self.assertEqual(camera_module.MonocularCamera.call_args.kwargs['config']['frequency'], 10)
-            self.assertEqual(camera_module.MonocularCamera.call_args.kwargs['config']['resolution'], [640, 480])
+            self.assertEqual(Camera.constructions[-1]['frequency'], 10)
+            self.assertEqual(Camera.constructions[-1]['resolution'], [640, 480])
 
 
 if __name__ == '__main__':

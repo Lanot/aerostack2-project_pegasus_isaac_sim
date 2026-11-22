@@ -59,6 +59,9 @@ class RelayConfigTests(unittest.TestCase):
         for drones in invalid:
             with self.subTest(drones=drones), self.assertRaises(ValueError):
                 video_relays(self.world(drones))
+        with self.assertRaisesRegex(ValueError, 'ros2_graphical_sensors: true'):
+            video_relays(self.world([{'model_name': 'a', 'payload': [camera('front')]}],
+                                   ros2_graphical_sensors=False))
         with self.assertRaisesRegex(ValueError, 'ros2: true'):
             video_relays(self.world([{'model_name': 'a', 'payload': [camera('front')]}], ros2=False))
 

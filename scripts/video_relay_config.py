@@ -20,6 +20,8 @@ def video_relays(world, host='127.0.0.1'):
 
         if not cameras:
             continue
+        if not world['ros2_graphical_sensors']:
+            raise ValueError('Video relays require ros2_graphical_sensors: true')
         if not world['ros2']:
             raise ValueError('Video relays require ros2: true to publish camera images')
         if len(cameras) > 10:

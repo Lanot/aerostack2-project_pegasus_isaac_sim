@@ -126,6 +126,16 @@ class WorldTests(unittest.TestCase):
                 with self.subTest(rate=rate), self.assertRaisesRegex(ValueError, 'a/camera'):
                     load_world(self.write_world(directory, [{'model_name': 'a', 'payload': [sensor]}]))
 
+    def test_graphical_publishing_switch_is_independent_of_camera_payloads(self):
+        with tempfile.TemporaryDirectory() as directory:
+            drones = [{'model_name': 'a', 'payload': [{'model_type': 'camera', 'model_name': 'front'}]}]
+            world = load_world(self.write_world(directory, drones, ros2_graphical_sensors=False))
+            self.assertTrue(world['ros2'])
+            self.assertFalse(world['ros2_graphical_sensors'])
+            self.assertEqual(len(world['drones'][0]['payload']), 1)
+            with self.assertRaises(ValueError):
+                load_world(self.write_world(directory, drones, ros2_graphical_sensors='false'))
+
     def test_simulation_rates(self):
         with tempfile.TemporaryDirectory() as directory:
             path = self.write_world(directory, [{'model_name': 'a'}])

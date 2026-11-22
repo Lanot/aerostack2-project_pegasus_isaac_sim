@@ -6,6 +6,7 @@ require unused extensions.
 """
 import math
 
+from camera_timing import set_camera_tick_rate
 from callback_profiler import profiled_vehicle_class, profile_backend
 from world_config import camera_frequency
 
@@ -23,6 +24,7 @@ from pegasus.simulator.params import ROBOTS, SIMULATION_ENVIRONMENTS
 from pegasus.simulator.logic.interface.pegasus_interface import PegasusInterface
 from pegasus.simulator.logic.vehicles.multirotor import Multirotor, MultirotorConfig
 
+SIMULATION_DEVICE = "cuda:0"
 
 FOLLOWING_CAMERA_PARAMS = {
     'resolution': (1920, 1080),
@@ -135,7 +137,14 @@ def build_scene(app, args, following=False):
     settings.set_bool('/app/runLoops/main/rateLimitEnabled', True)
     # Allow the full physics-step budget for each application tick.
     settings.set_float('/persistent/simulation/minFrameRate', float(rates['render_hz']))
-    SimulationManager.setup_simulation(dt=1.0 / rates['physics_hz'])
+
+    # SimulationManager.setup_simulation(dt=1.0 / rates['physics_hz'])
+    SimulationManager.setup_simulation(
+        dt=1.0 / rates['physics_hz'],
+        device=SIMULATION_DEVICE,
+    )
+    print(f"[AS2] Physics device: {SimulationManager.get_device()}", flush=True)
+
     RenderingManager.set_dt(1.0 / rates['render_hz'])
     print(f"SIM_TIMING physics_hz={rates['physics_hz']} render_hz={rates['render_hz']} "
           f"physics_steps_per_update={rates['physics_hz'] / rates['render_hz']:.2f}", flush=True)
@@ -189,7 +198,7 @@ def spawn_vehicle(app, args, spec, following, context):
         config.backends.append(IsaacSim6ROS2Backend(vehicle_id=spec['instance'], config={
             'namespace_exact': spec.get('sensor_namespace', spec['model_name']),
             'pub_sensors': True,
-            'pub_graphical_sensors': True, 'pub_state': False, 'sub_control': False,
+            'pub_graphical_sensors': args.world['ros2_graphical_sensors'], 'pub_state': False, 'sub_control': False,
         }))
 
     config.graphical_sensors = []
@@ -206,7 +215,16 @@ def spawn_vehicle(app, args, spec, following, context):
             camera_config.update(FOLLOWING_CAMERA_PARAMS)
 
         camera_config.update(sensor.get('config', {}))
-        config.graphical_sensors.append(MonocularCamera(sensor.get('model_name', 'camera'), config=camera_config))
+        class ScheduledCamera(MonocularCamera):
+            def initialize(self, vehicle):
+                super().initialize(vehicle)
+                # Legacy Camera.set_frequency only gates its Python acquisition.
+                # Native rendering and ROS helper writers use OmniSensorAPI in 6.x.
+                prim = omni.usd.get_context().get_stage().GetPrimAtPath(self._stage_prim_path)
+                set_camera_tick_rate(prim, self._frequency)
+                print(f'[AS2] Camera {self._stage_prim_path}: native tick rate {self._frequency} Hz', flush=True)
+
+        config.graphical_sensors.append(ScheduledCamera(sensor.get('model_name', 'camera'), config=camera_config))
 
     for sensor in spec['_payloads']:
         if sensor['model_type'] not in ('lidar', 'lidar3d', 'gpu_lidar') or args.no_lidar:

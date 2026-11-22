@@ -34,7 +34,7 @@ def load_world(filename):
     if not isinstance(result['world_name'], str):
         raise ValueError('world_name must be a string')
 
-    for key, default in (('ros2', True), ('follow_camera', False)):
+    for key, default in (('ros2', True), ('ros2_graphical_sensors', True), ('follow_camera', False)):
         result.setdefault(key, default)
         if not isinstance(result[key], bool):
             raise ValueError(f'{key} must be a boolean')

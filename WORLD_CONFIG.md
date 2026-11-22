@@ -427,3 +427,33 @@ is much larger than the measured callbacks, use Tracy to investigate PhysX,
 rendering, Cesium, driver synchronization and other native work. Keep the same
 world, drone count and settings when comparing changes. Disable profiling again
 for final RTF measurements. No physics rate or force equations change here.
+
+## Isaac Sim 6 camera writer scheduling
+
+Legacy Pegasus `Camera.set_frequency` does not author `omni:sensor:tickRate`.
+The project now applies `OmniSensorAPI` to each payload camera and sets that
+attribute from `config.frequency` (or the validated default) during camera
+initialization. This schedules native render products/ROS helper writers, in
+addition to the legacy Python acquisition rate. It prints the native rate for
+each camera. ROS CameraInfo and depth helpers share that camera schedule.
+
+For the custom-writer bottleneck described in IsaacSim discussion #442, make an
+A/B comparison with the same world, camera payloads, rendering and physics rates:
+
+```yaml
+ros2: true
+ros2_graphical_sensors: false
+```
+
+This keeps cameras and ordinary ROS sensor publishers, while preventing this
+project's camera/LiDAR ROS helper writers from being attached. Start a fresh
+simulator for each comparison, without `--video-relay` in the disabled-writer run.
+RTF is still printed in the simulator console. Set the switch back to `true`
+(the default) for image publication/QGC. This switch does not disable separate
+ROS publishing graphs already authored in a custom USD stage, or the camera's
+own internal annotators. A large speed difference implicates the graphical ROS
+publishing path; little difference points to other rendering/native work.
+
+After enabling publication, try a camera `config.frequency` of 10 Hz with the
+existing 50 Hz rendering rate. This change does not promise real-time performance;
+compare measured RTF and verify actual image reception.
