@@ -94,6 +94,16 @@ class WorldTests(unittest.TestCase):
             self.assertFalse(args.no_lidar)
             self.assertEqual(args.world['drones'][0]['xyz'], [3., 0., .07])
 
+    def test_lockstep_defaults_to_true_and_can_be_disabled(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write_world(directory, [{'model_name': 'a'}])
+            self.assertTrue(load_world(path)['px4']['enable_lockstep'])
+            path = self.write_world(directory, [{'model_name': 'a'}],
+                                    px4={'enabled': True, 'enable_lockstep': False})
+            world = load_world(path)
+            self.assertTrue(world['px4']['enabled'])
+            self.assertFalse(world['px4']['enable_lockstep'])
+
     def test_camera_cli_overrides_yaml_and_prints_effective_config(self):
         from isaacsim_app import parse_arguments
         with tempfile.TemporaryDirectory() as directory:
@@ -113,7 +123,7 @@ class WorldTests(unittest.TestCase):
             self.assertIn('must match a configured model_name', result.stderr)
 
     def test_invalid_backend_and_camera_settings_fail_before_kit(self):
-        invalid = [{'px4': False}, {'px4': {'enabled': 'false'}},
+        invalid = [{'px4': {'enable_lockstep': 'false'}}, {'px4': False}, {'px4': {'enabled': 'false'}},
                    {'px4': {'autolaunch': 1}}, {'px4': {'model': ''}},
                    {'ros2': 'false'}, {'follow_camera': 'yes'},
                    {'follow_drone': []}, {'follow_drone': 'missing'},

@@ -158,6 +158,7 @@ def spawn_vehicle(app, args, spec, following, context):
             'px4_autolaunch': not args.no_px4_autolaunch,
             'px4_dir': str(args.px4_dir),
             'px4_vehicle_model': args.px4_model,
+            'enable_lockstep': args.world['px4']['enable_lockstep'],
         }), namespace=spec.get('dds_namespace', spec['model_name'])))
 
     if not args.no_ros2:

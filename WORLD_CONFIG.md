@@ -194,3 +194,23 @@ saved, and `tail -f /path/printed/by/launcher/isaacsim.log` follows them later.
 With `-s`, no simulator is launched or followed. With `-g`, logs remain in the
 simulator's separate terminal and the printed log file. AS2 node logs stay in
 their respective tmux panes.
+
+## Diagnose a PX4 swarm freeze
+
+If three drones run with `px4.enabled: false`, re-enable PX4 and test the
+Pegasus receive path separately by setting these top-level world options:
+
+```yaml
+px4:
+  enabled: true
+  autolaunch: true
+  enable_lockstep: false
+```
+
+`enable_lockstep` defaults to `true`, retaining the existing behavior. Setting
+it to `false` selects Pegasus's nonblocking MAVLink polling; the simulation
+can advance without waiting for an actuator response on every physics step.
+This changes synchronization and may change control timing. It does not change
+the PX4 firmware's internal lockstep configuration or establish flight readiness.
+Check live odometry for every drone and test one vehicle before swarm missions.
+A responsive GUI alone does not prove PX4 is exchanging sensor/actuator data.

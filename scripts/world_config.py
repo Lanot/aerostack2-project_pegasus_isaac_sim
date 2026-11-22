@@ -45,7 +45,7 @@ def load_world(filename):
     px4 = result.setdefault('px4', {})
     if not isinstance(px4, dict):
         raise ValueError('px4 must be a mapping')
-    for key in ('enabled', 'autolaunch'):
+    for key in ('enabled', 'autolaunch', 'enable_lockstep'):
         px4.setdefault(key, True)
         if not isinstance(px4[key], bool):
             raise ValueError(f'px4.{key} must be a boolean')

@@ -67,6 +67,28 @@ class SceneTests(unittest.TestCase):
         clock.assert_not_called()
         self.assertIsNone(follow)
 
+        # Exercise actual config propagation into each PX4 backend, independently
+        # of sensor/renderer availability.
+        backend_module = types.ModuleType('pegasus.simulator.logic.backends.px4_mavlink_backend')
+        backend_module.PX4MavlinkBackendConfig = lambda settings: settings
+        adapter_module = types.ModuleType('px4_backend')
+        adapter_module.NamespacedPX4Backend = MagicMock()
+        args.no_px4 = False
+        with patch.dict(sys.modules, {backend_module.__name__: backend_module,
+                                      adapter_module.__name__: adapter_module}):
+            for lockstep in (True, False):
+                args.world['px4']['enable_lockstep'] = lockstep
+                adapter_module.NamespacedPX4Backend.reset_mock()
+                for drone in args.world['drones']:
+                    scene.spawn_vehicle(MagicMock(), args, drone, False, context)
+                backend_calls = adapter_module.NamespacedPX4Backend.call_args_list
+                self.assertEqual(len(backend_calls), 3)
+                self.assertEqual([c.args[0]['vehicle_id'] for c in backend_calls], [0, 1, 2])
+                self.assertTrue(all(c.args[0]['enable_lockstep'] is lockstep for c in backend_calls))
+                self.assertEqual([c.kwargs['namespace'] for c in backend_calls],
+                                 ['drone0', 'drone1', 'drone2'])
+
+
 
 if __name__ == '__main__':
     unittest.main()

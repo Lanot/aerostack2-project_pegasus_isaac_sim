@@ -4,10 +4,17 @@
 # ros2: true
 # px4: {enabled: true, autolaunch: true, model: gazebo-classic_iris}
 world_name: "empty"
+
+px4:
+  enabled: true
+  autolaunch: true
+  enable_lockstep: false
+
 origin: 
     latitude: 40.337494
     longitude: -3.883197
     altitude: 100.0
+
 drones:
 
   - model_type: "quadrotor_base"
