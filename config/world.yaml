@@ -16,7 +16,7 @@ simulation:
   render_quality: current
   direct_tensors: false
   physics_hz: 250
-  render_hz: 50
+  render_hz: 20
   profile: false
 
 origin: 
@@ -47,4 +47,6 @@ drones:
           model_name: "camera"
           config:
             frequency: 10
-            resolution: [640, 360]
+            resolution: [640, 480]
+            depth: false
+            ros_only: true

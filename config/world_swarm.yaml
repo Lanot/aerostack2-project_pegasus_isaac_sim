@@ -16,7 +16,7 @@ simulation:
   render_quality: current
   direct_tensors: false
   physics_hz: 250
-  render_hz: 50
+  render_hz: 20
 
 origin: 
     latitude: 40.337494
@@ -45,6 +45,7 @@ drones:
         config:
           frequency: 10
           resolution: [640, 360]
+          ros_only: true
 
   - model_type: "quadrotor_base"
     model_name: "drone1"
@@ -66,6 +67,7 @@ drones:
         config:
           frequency: 10
           resolution: [640, 360]
+          ros_only: true
 
   - model_type: "quadrotor_base"
     model_name: "drone2"
@@ -87,3 +89,4 @@ drones:
         config:
           frequency: 10
           resolution: [640, 360]
+          ros_only: true

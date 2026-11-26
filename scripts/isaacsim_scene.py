@@ -6,7 +6,7 @@ require unused extensions.
 """
 import math
 
-from camera_timing import set_camera_tick_rate
+from camera_timing import disable_python_camera_acquisition, set_camera_tick_rate
 from callback_profiler import profiled_vehicle_class, profile_backend
 from sensor_rates import configure_sensor_rates
 from world_config import camera_frequency
@@ -218,6 +218,16 @@ def spawn_vehicle(app, args, spec, following, context):
 
         camera_config.update(sensor.get('config', {}))
         class ScheduledCamera(MonocularCamera):
+            def __init__(self, name, config):
+                super().__init__(name, config=config)
+                self._ros_only = config.get('ros_only', False)
+
+            def start(self):
+                super().start()
+                if self._ros_only:
+                    disable_python_camera_acquisition(self._camera, depth=self._depth)
+                    print(f'[AS2] Camera {self._stage_prim_path}: ROS-only image acquisition', flush=True)
+
             def initialize(self, vehicle):
                 super().initialize(vehicle)
                 # Legacy Camera.set_frequency only gates its Python acquisition.

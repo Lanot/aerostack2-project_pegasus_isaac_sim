@@ -540,3 +540,39 @@ cadence, select rates that divide physics_hz, as in the 250 Hz example above.
 This changes sensor sampling and message frequency, not physics dt or the force
 model. Check PX4 estimator and flight behavior before using changed sampling
 rates for missions. The native Pegasus extension is not modified.
+
+## ROS-only camera acquisition
+
+For cameras consumed exclusively through the project's native ROS image helpers,
+opt in per camera:
+
+```yaml
+payload:
+  - model_type: camera
+    model_name: camera
+    config:
+      frequency: 25
+      resolution: [640, 480]
+      depth: false
+      ros_only: true
+```
+
+The default is false, preserving legacy Python frame acquisition. With true,
+Pegasus still creates/configures the camera and render product, but the project
+pauses the legacy Camera object's Python acquisition callback and detaches its
+RGB/depth frame annotators after start. The callback normally evaluates the
+postprocess graph synchronously and fetches frame data that this project's ROS
+adapter never reads. Native ROS RGB, CameraInfo and optional depth helpers remain
+on the same render product. Both `ros2` and `ros2_graphical_sensors` must be true.
+Python `get_current_frame` image data is not populated in this mode. External
+Python consumers requiring frame data should leave ros_only false.
+
+This reduces acquisition overhead; it does not eliminate rendering or the ROS
+publisher's image transfer cost. Keep physics, render rate, resolution, renderer
+and profiling identical for an A/B test. For 25 Hz cameras, render_hz 25 gives
+an integer 10 physics steps per app update at 250 Hz physics; render_hz 50 is
+also supported. Wait until image topics are publishing before timing. Verify
+image contents, calibration, timestamps, and topic rate after applying the
+change. The topic rate measured in wall time is roughly configured camera rate
+multiplied by RTF. GPU performance and native ROS delivery require validation in
+Isaac Sim; offline tests only cover configuration and acquisition calls.

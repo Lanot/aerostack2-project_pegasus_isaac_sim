@@ -126,6 +126,7 @@ def main(argv=None):
 
     app = SimulationApp({
         'headless': args.headless,
+        "scene_graph_instancing": True,
         'disable_viewport_updates': args.headless,
         'extra_args': extra_args,
     })

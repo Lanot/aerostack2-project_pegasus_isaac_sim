@@ -213,6 +213,10 @@ def load_world(filename, overrides=None):
         for sensor in payloads(drone, warn_gimbals=False):
             if sensor['model_type'] in ('hd_camera', 'camera', 'monocular_camera'):
                 camera_frequency(sensor, result['simulation']['render_hz'], drone['model_name'])
+                if sensor.get('config', {}).get('ros_only', False) and not (
+                    result['ros2'] and result['ros2_graphical_sensors']
+                ):
+                    raise ValueError('camera ros_only requires ros2 and ros2_graphical_sensors')
     return result
 
 
@@ -244,6 +248,8 @@ def camera_frequency(sensor, render_hz, drone_name):
     name = f"{drone_name}/{sensor.get('model_name', 'camera')}"
     if not isinstance(settings, dict):
         raise ValueError(f'{name}: camera config must be a mapping')
+    if not isinstance(settings.get('ros_only', False), bool):
+        raise ValueError(f'{name}: camera config.ros_only must be a boolean')
     # Highest divisor up to 30 Hz: 25 Hz at 50 Hz rendering, 30 Hz at 60 Hz.
     default = max(rate for rate in range(1, min(30, render_hz) + 1) if render_hz % rate == 0)
     rate = settings.get('frequency', default)
