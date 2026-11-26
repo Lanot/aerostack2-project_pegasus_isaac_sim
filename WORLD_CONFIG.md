@@ -511,3 +511,32 @@ as well as RTF. CUDA behavior and performance require validation on the target
 machine; offline tests exercise configuration, callbacks, force/state semantics
 and native Warp CPU buffer operations. Profiling adds overhead, so disable it
 for final RTF comparisons.
+
+## Physical sensor sampling rates
+
+Optional `simulation.sensor_rates` entries change Pegasus's physical sensors
+before initialization. Omitted entries keep their existing Pegasus defaults;
+adding a `gps` payload does not itself set the physical GPS model's rate.
+
+```yaml
+simulation:
+  physics_hz: 250
+  render_hz: 50
+  sensor_rates:
+    imu: 250
+    magnetometer: 50
+    barometer: 50
+    gps: 10
+```
+
+Allowed names are `imu`, `magnetometer`, `barometer` and `gps`. Values must be
+finite, positive numbers no greater than `physics_hz`. They are simulated-time
+rates, independent of camera sampling. Startup prints `SIM_SENSOR_RATES` for
+every drone so overrides can be verified. Sensor updates remain on Pegasus's
+native physics-step scheduler: a requested period is rounded up to a whole
+number of physics steps, and the first sample is immediate. For predictable
+cadence, select rates that divide physics_hz, as in the 250 Hz example above.
+
+This changes sensor sampling and message frequency, not physics dt or the force
+model. Check PX4 estimator and flight behavior before using changed sampling
+rates for missions. The native Pegasus extension is not modified.

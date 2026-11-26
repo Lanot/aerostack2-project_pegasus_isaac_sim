@@ -8,6 +8,7 @@ import math
 
 from camera_timing import set_camera_tick_rate
 from callback_profiler import profiled_vehicle_class, profile_backend
+from sensor_rates import configure_sensor_rates
 from world_config import camera_frequency
 
 import numpy as np
@@ -15,11 +16,13 @@ from scipy.spatial.transform import Rotation
 
 import carb
 import omni.graph.core as og
-from isaacsim.core.rendering_manager import RenderingManager
-from isaacsim.core.simulation_manager import SimulationManager
 import omni.usd
 from omni.kit.viewport.utility import get_active_viewport
 from pxr import Gf, UsdGeom, UsdLux, UsdPhysics
+
+from isaacsim.core.rendering_manager import RenderingManager
+from isaacsim.core.simulation_manager import SimulationManager
+
 from pegasus.simulator.params import ROBOTS, SIMULATION_ENVIRONMENTS
 from pegasus.simulator.logic.interface.pegasus_interface import PegasusInterface
 from pegasus.simulator.logic.vehicles.multirotor import Multirotor, MultirotorConfig
@@ -177,6 +180,8 @@ def build_scene(app, args, following=False):
 
 def spawn_vehicle(app, args, spec, following, context):
     config = MultirotorConfig()
+    configure_sensor_rates(config.sensors, args.world['simulation'].get('sensor_rates', {}),
+                           spec['model_name'])
     config.backends = []
 
     if not args.no_px4:

@@ -52,7 +52,7 @@ class SceneTests(unittest.TestCase):
         interface = types.ModuleType('pegasus.simulator.logic.interface.pegasus_interface')
         interface.PegasusInterface = MagicMock()
         vehicles = types.ModuleType('pegasus.simulator.logic.vehicles.multirotor')
-        vehicles.MultirotorConfig = lambda: types.SimpleNamespace()
+        vehicles.MultirotorConfig = lambda: types.SimpleNamespace(sensors=[])
         vehicles.Multirotor = MagicMock()
         modules = {'carb': carb, rendering.__name__: rendering, simulation.__name__: simulation, 'omni.graph': omni.graph, 'omni.graph.core': graph, 'omni.kit.viewport.utility': viewport, 'omni': omni, 'omni.usd': omni.usd, 'omni.timeline': omni.timeline,
                    'pxr': pxr, params.__name__: params, interface.__name__: interface,

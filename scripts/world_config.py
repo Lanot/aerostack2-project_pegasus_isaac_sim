@@ -9,6 +9,8 @@ import warnings
 
 import yaml
 
+from sensor_rates import validate_sensor_rates
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 SIMULATION_DEFAULTS = {
@@ -104,6 +106,8 @@ def load_world(filename, overrides=None):
         raise ValueError('simulation.profile must be a boolean')
     if simulation['render_hz'] > simulation['physics_hz']:
         raise ValueError('simulation.render_hz must not exceed physics_hz')
+
+    validate_sensor_rates(simulation.get('sensor_rates', {}), simulation['physics_hz'])
 
     extensions = result.setdefault('extensions', [])
     if not isinstance(extensions, list) or any(
