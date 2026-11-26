@@ -129,6 +129,7 @@ Note: Check Troubleshooting section if you have installation problems and rememb
 mkdir ~/workspace
 cd ~/workspace
 https://github.com/Lanot/aerostack2-project_pegasus_isaac_sim.git
+git checkout dev/isaac-sim-6
 
 # Or origin:
 # git clone https://github.com/aerostack2/project_pegasus_isaac_sim
