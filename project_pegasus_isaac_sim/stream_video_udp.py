@@ -129,7 +129,7 @@ def main():
     parser.add_argument('--host', default='127.0.0.1', help='IP address of the QGC computer')
     parser.add_argument('--port', type=int, default=5600)
     parser.add_argument('--width', type=int, default=640)
-    parser.add_argument('--height', type=int, default=360)
+    parser.add_argument('--height', type=int, default=480)
     parser.add_argument('--fps', type=int, default=10, help='Maximum wall-clock send rate')
     parser.add_argument('--bitrate', type=int, default=1500, help='H.264 bitrate in kbit/s')
     args = parser.parse_args(remove_ros_args()[1:])
