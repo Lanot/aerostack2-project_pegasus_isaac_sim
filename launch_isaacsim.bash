@@ -2,7 +2,7 @@
 set -euo pipefail
 
 project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-isaacsim_dir="${ISAACSIM_PATH:-$HOME/sim/IsaacSim-6.0.1}"
+isaacsim_dir="${ISAACSIM_PATH:-$HOME/IsaacSim}"
 isaacsim_python="${ISAACSIM_PYTHON:-$isaacsim_dir/python.sh}"
 entrypoint="scripts/isaac_sim_run.py"
 

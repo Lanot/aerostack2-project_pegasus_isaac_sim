@@ -11,6 +11,10 @@ px4:
   enable_lockstep: false
 
 simulation:
+  physics_device: cuda
+  physics_threads: -1
+  render_quality: current
+  direct_tensors: false
   physics_hz: 250
   render_hz: 50
   profile: false

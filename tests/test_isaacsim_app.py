@@ -82,7 +82,8 @@ class LauncherTests(unittest.TestCase):
         app.close.side_effect = verify_error_before_close
         follow = MagicMock()
         scene_module.build_scene = MagicMock(side_effect=scene_error, return_value=(MagicMock(), follow))
-        modules = {'isaacsim_scene': scene_module, 'isaacsim': isaacsim, 'omni': omni, 'omni.kit': omni.kit,
+        carb = types.SimpleNamespace(settings=types.SimpleNamespace(get_settings=MagicMock(return_value=MagicMock())))
+        modules = {'carb': carb, 'isaacsim_scene': scene_module, 'isaacsim': isaacsim, 'omni': omni, 'omni.kit': omni.kit,
                    'omni.kit.app': omni.kit.app, 'omni.timeline': omni.timeline}
         args = types.SimpleNamespace(
             no_px4=True, no_px4_autolaunch=False, pegasus_dir=Path('/fake/PegasusSimulator'),

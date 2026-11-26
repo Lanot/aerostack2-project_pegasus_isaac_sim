@@ -147,11 +147,11 @@ and simulator `--headless` remain available.
 The remaining simulator CLI options are `--config` (`--simulation-config-file`),
 `-m`/`--swarm`, `--print-config`, `--px4-dir` (alias `--px4_dir`),
 `--pegasus-dir`, `--follow-camera`/`--no-follow-camera`, `--follow-drone`,
-`--headless`, `--max-steps`, and `--help`. Installation paths
+`--headless`, `--max-steps`, `--help`, plus the performance overrides below. Installation paths
 remain machine-specific overrides; headless mode and the update limit are
 execution controls. An explicit `--config` takes precedence over `-m`.
 
-Default installation paths are `~/sim/IsaacSim-6.0.1`,
+Default installation paths are `~/sim/IsaacSim-6.2.0`,
 `~/sim/IsaacSim-Extensions/PegasusSimulator`, and `~/sim/PX4-Autopilot`.
 Override using `ISAACSIM_PATH`/`ISAACSIM_PYTHON`, `PEGASUS_SIMULATOR_DIR`, and
 `PX4_DIR`. Prerequisites remain the migrated Pegasus port, built PX4 and AS2,
@@ -233,8 +233,13 @@ with defaults matching this optional world section:
 
 ```yaml
 simulation:
+  physics_device: cuda          # cpu or cuda
   physics_hz: 250
   render_hz: 50
+  physics_threads: -1           # -1 keeps current; 0 serial dispatch; >0 workers
+  profile: false
+  render_quality: current      # current or fast
+  direct_tensors: false        # opt-in Pegasus Warp adapter for Isaac Sim 6.2
 ```
 
 Physics remains at 250 Hz in simulated time. Each app update advances a nominal
@@ -244,7 +249,7 @@ replaces the previously implicit timeline timing. Actual sensor render rates
 still depend on payload configuration and scheduling. `--headless` also disables
 viewport updates. Custom-world timeline timing is overridden intentionally.
 
-Every five wall-clock seconds, `SIM_PERF` logs measured RTF, physics steps per
+With `profile: true`, every five wall-clock seconds `SIM_PERF` logs measured RTF, physics steps per
 wall-clock second, app updates per wall-clock second and physics steps per update.
 `SIM_TIMING` reports requested rates at startup. For the default configuration,
 RTF near 1, physics_hz near 250 and app_hz near 50 indicate real-time progress.
@@ -426,7 +431,7 @@ If vehicle callbacks dominate, optimize the identified callback. If `app.update`
 is much larger than the measured callbacks, use Tracy to investigate PhysX,
 rendering, Cesium, driver synchronization and other native work. Keep the same
 world, drone count and settings when comparing changes. Disable profiling again
-for final RTF measurements. No physics rate or force equations change here.
+for final RTF measurements. The profiler itself does not change physics rates or force equations.
 
 ## Isaac Sim 6 camera writer scheduling
 
@@ -457,3 +462,52 @@ publishing path; little difference points to other rendering/native work.
 After enabling publication, try a camera `config.frequency` of 10 Hz with the
 existing 50 Hz rendering rate. This change does not promise real-time performance;
 compare measured RTF and verify actual image reception.
+
+## Performance overrides and direct tensors
+
+All six settings can be overridden for an individual run without editing YAML:
+
+```bash
+bash launch_as2.bash --config config/world.yaml --no-attach \
+  --physics_device cuda --physics_hz 300 --physics_threads 0 \
+  --render_quality fast --direct_tensors --profile
+```
+
+Use the same arguments with `launch_isaacsim.bash` for a simulator-only run.
+Both underscore and hyphen spellings work, with separate values or `--flag=value`
+for device/rate/thread/render settings. Boolean flags are `--profile`,
+`--no-profile`, `--direct-tensors` and `--no-direct-tensors` (the last two also
+accept underscores). These are shell flags, rather than ROS launch `name:=value`
+arguments. Unspecified flags retain YAML values.
+
+| Setting | Default | Behavior |
+| --- | --- | --- |
+| physics_device | cuda | Passed to `SimulationManager.setup_simulation(device=...)`; actual device printed at startup |
+| physics_hz | 250 | Sets `dt=1/physics_hz`; must be a positive integer at least render_hz |
+| physics_threads | -1 | Keep current setting; 0 serial PhysX dispatch; positive values select worker count |
+| profile | false | Enable SIM_PERF and inclusive SIM_PROFILE output |
+| render_quality | current | Keep existing rendering; fast selects RaytracedLighting and disables reflections, indirect diffuse and AO |
+| direct_tensors | false | Enable the project-local Pegasus four-rotor Warp IO adapter |
+
+`physics_threads` changes `/persistent/physics/numThreads`, not Kit's general
+Carb/TBB thread pool. CUDA physics still performs CPU dispatch work. The fast
+render preset reduces visual effects and can change camera images.
+
+Direct tensor IO uses the original Pegasus `Multirotor.update` force model.
+Forces remain on their original rotor/body rigid bodies in local coordinates.
+The adapter accumulates local forces and torques, preserving application-point
+moments, then submits one native batched wrench operation. Body pose/velocities
+are packed into one readback, and propeller visuals into one articulation write.
+External force/torque calls outside the vehicle update retain the original API.
+The adapter targets the installed Isaac Sim 6.2 experimental Warp RigidPrim's
+internal native view, independently of the rs_isaac_uav_sim Torch adapter. It
+rejects unsupported layouts rather than approximating the vehicle as one body.
+It rebuilds views on start and releases them on stop.
+
+Compare the same world, sensor settings, flight state and drone count with
+`--no-direct-tensors` and `--direct-tensors`. Start at 250 Hz, then test 300 Hz;
+leave render_hz unchanged. Check hover, attitude response, timestamps and sensors
+as well as RTF. CUDA behavior and performance require validation on the target
+machine; offline tests exercise configuration, callbacks, force/state semantics
+and native Warp CPU buffer operations. Profiling adds overhead, so disable it
+for final RTF comparisons.

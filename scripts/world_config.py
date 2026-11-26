@@ -11,6 +11,28 @@ import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
+SIMULATION_DEFAULTS = {
+    'physics_device': 'cuda', 'physics_hz': 250, 'render_hz': 50,
+    'physics_threads': -1, 'profile': False, 'render_quality': 'current',
+    'direct_tensors': False,
+}
+
+
+def add_simulation_arguments(parser):
+    """Shared CLI overrides; unspecified values retain the world YAML setting."""
+    parser.add_argument('--physics-device', '--physics_device', choices=('cpu', 'cuda'))
+    parser.add_argument('--physics-hz', '--physics_hz', type=int)
+    parser.add_argument('--physics-threads', '--physics_threads', type=int)
+    parser.add_argument('--profile', action=argparse.BooleanOptionalAction, default=None)
+    parser.add_argument('--render-quality', '--render_quality', choices=('current', 'fast'))
+    parser.add_argument('--direct-tensors', '--direct_tensors',
+                        action=argparse.BooleanOptionalAction, default=None)
+
+
+def simulation_overrides(args):
+    return {key: getattr(args, key) for key in SIMULATION_DEFAULTS
+            if getattr(args, key, None) is not None}
+
 
 def vector(value, name, size=3):
     if not isinstance(value, (list, tuple)) or len(value) != size:
@@ -20,7 +42,7 @@ def vector(value, name, size=3):
     return [float(v) for v in value]
 
 
-def load_world(filename):
+def load_world(filename, overrides=None):
     path = Path(filename).expanduser().resolve()
     with path.open(encoding='utf-8') as stream:
         config = yaml.safe_load(stream)
@@ -56,6 +78,22 @@ def load_world(filename):
     simulation = result.setdefault('simulation', {})
     if not isinstance(simulation, dict):
         raise ValueError('simulation must be a mapping')
+    if overrides:
+        unknown = set(overrides) - SIMULATION_DEFAULTS.keys()
+        if unknown:
+            raise ValueError(f'Unknown simulation overrides: {sorted(unknown)}')
+        simulation.update(overrides)
+    for key, default in SIMULATION_DEFAULTS.items():
+        simulation.setdefault(key, default)
+    if simulation['physics_device'] not in ('cpu', 'cuda'):
+        raise ValueError('simulation.physics_device must be cpu or cuda')
+    if simulation['render_quality'] not in ('current', 'fast'):
+        raise ValueError('simulation.render_quality must be current or fast')
+    threads = simulation['physics_threads']
+    if isinstance(threads, bool) or not isinstance(threads, int) or threads < -1:
+        raise ValueError('simulation.physics_threads must be -1 or a nonnegative integer')
+    if not isinstance(simulation['direct_tensors'], bool):
+        raise ValueError('simulation.direct_tensors must be a boolean')
     for key, default in (('physics_hz', 250), ('render_hz', 50)):
         simulation.setdefault(key, default)
         value = simulation[key]
@@ -241,11 +279,18 @@ def main():
     parser.add_argument('--platform-config')
     parser.add_argument('--base-config', default=str(PROJECT_ROOT / 'config/config.yaml'))
     parser.add_argument('--output')
+    parser.add_argument('--effective-world', action='store_true',
+                        help='Write validated world YAML, including simulation overrides')
+    add_simulation_arguments(parser)
     args = parser.parse_args()
 
     try:
-        world = load_world(args.config)
-        if args.platform_config:
+        world = load_world(args.config, simulation_overrides(args))
+        if args.effective_world:
+            if not args.output:
+                parser.error('--output is required with --effective-world')
+            Path(args.output).write_text(yaml.safe_dump(world, sort_keys=False))
+        elif args.platform_config:
             if not args.output:
                 parser.error('--output is required with --platform-config')
             Path(args.output).write_text(yaml.safe_dump(platform_config(world, args.platform_config, args.base_config)))

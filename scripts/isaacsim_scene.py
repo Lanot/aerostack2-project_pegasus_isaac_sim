@@ -24,8 +24,6 @@ from pegasus.simulator.params import ROBOTS, SIMULATION_ENVIRONMENTS
 from pegasus.simulator.logic.interface.pegasus_interface import PegasusInterface
 from pegasus.simulator.logic.vehicles.multirotor import Multirotor, MultirotorConfig
 
-SIMULATION_DEVICE = "cuda:0"
-
 FOLLOWING_CAMERA_PARAMS = {
     'resolution': (1920, 1080),
     'intrinsics': np.array([[609.25, 0, 960], [0, 609.25, 540], [0, 0, 1]]),
@@ -138,10 +136,9 @@ def build_scene(app, args, following=False):
     # Allow the full physics-step budget for each application tick.
     settings.set_float('/persistent/simulation/minFrameRate', float(rates['render_hz']))
 
-    # SimulationManager.setup_simulation(dt=1.0 / rates['physics_hz'])
     SimulationManager.setup_simulation(
         dt=1.0 / rates['physics_hz'],
-        device=SIMULATION_DEVICE,
+        device=rates.get('physics_device', 'cuda'),
     )
     print(f"[AS2] Physics device: {SimulationManager.get_device()}", flush=True)
 
@@ -264,9 +261,15 @@ def spawn_vehicle(app, args, spec, following, context):
     if not spec.get('usd_path') and model not in ROBOTS:
         raise ValueError(f'Unsupported Pegasus drone model {model!r}; set pegasus_model or usd_path')
     vehicle_type = Multirotor
+
+    if args.world['simulation'].get('direct_tensors', False):
+        from pegasus_direct_tensors import direct_vehicle_class
+        vehicle_type = direct_vehicle_class(
+            vehicle_type, device=args.world['simulation'].get('physics_device', 'cuda'))
+
     profiler = getattr(args, 'callback_profiler', None)
     if profiler is not None:
-        vehicle_type = profiled_vehicle_class(Multirotor, profiler, spec['model_name'])
+        vehicle_type = profiled_vehicle_class(vehicle_type, profiler, spec['model_name'])
         for backend in config.backends:
             profile_backend(backend, profiler, spec['model_name'])
     return vehicle_type('/World/' + spec['model_name'], spec.get('usd_path') or ROBOTS[model],

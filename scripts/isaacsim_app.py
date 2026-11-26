@@ -17,7 +17,9 @@ import yaml
 
 from callback_profiler import CallbackProfiler
 from simulation_performance import SimulationPerformance
-from world_config import PROJECT_ROOT, load_world, payloads
+from world_config import (PROJECT_ROOT, add_simulation_arguments, load_world,
+                          payloads, simulation_overrides)
+from simulation_settings import apply_simulation_settings
 
 
 def parse_arguments(argv=None):
@@ -38,6 +40,7 @@ def parse_arguments(argv=None):
     parser.add_argument('--follow-drone', help='Override world follow_drone')
 
     parser.add_argument('--headless', action='store_true')
+    add_simulation_arguments(parser)
 
     parser.add_argument('--max-steps', type=int, default=0,
                         help='Exit after this many app updates (0: run until closed)')
@@ -49,7 +52,7 @@ def parse_arguments(argv=None):
     config_file = args.config or str(PROJECT_ROOT / 'config' / (
         'world_swarm.yaml' if args.swarm else 'world.yaml'))
     try:
-        args.world = load_world(config_file)
+        args.world = load_world(config_file, simulation_overrides(args))
         # Validate supported payloads before creating the simulator.
         for drone in args.world['drones']:
             drone['_payloads'] = payloads(drone)
@@ -152,6 +155,8 @@ def main(argv=None):
             if not manager.is_extension_enabled(extension):
                 raise RuntimeError(f'Could not enable {extension}')
 
+        apply_simulation_settings(import_module('carb').settings.get_settings(),
+                                  args.world['simulation'])
         app.update()
 
         timeline = timeline_module.get_timeline_interface()
@@ -164,7 +169,8 @@ def main(argv=None):
         phase = 'starting physics'
         print('[AS2] Starting physics', flush=True)
         timeline.play()
-        performance = SimulationPerformance(scene.simulation_counters)
+        performance = (SimulationPerformance(scene.simulation_counters)
+                       if args.callback_profiler is not None else None)
         steps = 0
 
         phase = 'running simulation'
@@ -177,7 +183,8 @@ def main(argv=None):
             if follow_camera is not None:
                 follow_camera.update()
             steps += 1
-            performance.sample()
+            if performance is not None:
+                performance.sample()
             if args.callback_profiler is not None:
                 args.callback_profiler.sample()
         print(f'PEGASUS_RUN_COMPLETE steps={steps}', flush=True)

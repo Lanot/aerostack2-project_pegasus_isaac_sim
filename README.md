@@ -20,6 +20,36 @@ The optional `--video-relay` flag starts ROS video relays for cameras declared i
 the selected world. See [WORLD_CONFIG.md](WORLD_CONFIG.md) for the one-time package
 build, automatic per-drone UDP port allocation and console routing warnings.
 
+## Performance options (Isaac Sim 6.2)
+
+Both launchers accept `--physics_device`, `--physics_hz`, `--physics_threads`,
+`--profile`, `--render_quality` and `--direct_tensors`. Hyphenated spellings also
+work. CLI values override the corresponding `simulation` fields in the world YAML.
+
+```bash
+bash launch_isaacsim.bash --config config/world.yaml \
+  --physics_device cuda --physics_hz 300 --physics_threads 0 \
+  --render_quality fast --direct_tensors --profile
+```
+
+For the full AS2 stack, use the same flags with `bash launch_as2.bash`. The AS2
+launcher writes an effective world file for the simulator and accompanying nodes.
+Use `--no-profile` or `--no-direct-tensors` to override a YAML `true` value.
+
+Defaults preserve the existing CUDA, 250 Hz physics and 50 Hz rendering, with
+`physics_threads=-1`, `render_quality=current` and `direct_tensors=false`.
+`physics_threads=0` selects serial PhysX CPU task dispatch while keeping CUDA
+physics. `-1` leaves the existing worker setting unchanged.
+
+The optional direct tensor adapter is local to this project. It batches the
+four rotor forces and body wrench, reads body pose and velocity together, and
+batches propeller visual updates. It preserves each force's local frame and
+application moment; the original Pegasus extension is unchanged. This path uses
+Isaac Sim 6.2's internal experimental Warp view and currently requires the
+Pegasus four-rotor `/body`, `/rotor0` ... `/rotor3` layout. Native views are
+released on stop and recreated on start. See [WORLD_CONFIG.md](WORLD_CONFIG.md)
+for the complete settings and measurement guidance.
+
 ## CUSTOM Isaac Sim 6.x (Ubuntu 24.04 / ROS 2 Jazzy)
 
 The standalone entrypoint now targets the `dev_6.0.1_custom` Pegasus port.
@@ -32,7 +62,7 @@ through YAML or `--follow-camera` tracks live Pegasus physics state.
 
 Prerequisites:
 
-- Isaac Sim 6.0.1 with a working NVIDIA driver.
+- Isaac Sim 6.x with a working NVIDIA driver.
 - The migrated Pegasus checkout at `~/IsaacSim-Extensions/PegasusSimulator`.
   The project does not patch or modify that installation.
 - Built PX4 SITL at `~/PX4-Autopilot` (the binary is checked before starting Kit).
@@ -67,7 +97,7 @@ See [WORLD_CONFIG.md](WORLD_CONFIG.md) for the complete schema.
 Optional installation overrides:
 
 ```bash
-export ISAACSIM_PATH="$HOME/sim/IsaacSim-6.0.1"
+export ISAACSIM_PATH="$HOME/sim/IsaacSim-6.2.0"
 export PEGASUS_SIMULATOR_DIR="$HOME/sim/IsaacSim-Extensions/PegasusSimulator"
 export PX4_DIR="$HOME/sim/PX4-Autopilot"
 ```

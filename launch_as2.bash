@@ -11,6 +11,8 @@ usage() {
     echo "      --video-relay: start ROS UDP relays for configured cameras (default: false)"
     echo "      --video-relay-host IP: QGC destination (default: 127.0.0.1)"
     echo "      --headless: launch Isaac Sim without its GUI"
+    echo "      --physics-device cpu|cuda, --physics-hz HZ, --physics-threads N: override simulation YAML"
+    echo "      --profile / --no-profile, --render-quality current|fast, --direct-tensors / --no-direct-tensors"
     echo "      -s, --no-simulation: do not launch Isaac Sim"
     echo "      -x: launch one Micro XRCE-DDS Agent for all drones"
     echo "      -c CONTROLLER: select pid or df. Default: pid"
@@ -41,6 +43,7 @@ attach_session="true"
 follow_logs="true"
 follow_camera=""
 follow_drone=""
+simulation_overrides=()
 
 # Parse command-line arguments.
 while (($#)); do
@@ -68,6 +71,18 @@ while (($#)); do
             ;;
         --headless)
             headless="true"
+            shift
+            ;;
+        --physics-device|--physics_device|--physics-hz|--physics_hz|--physics-threads|--physics_threads|--render-quality|--render_quality)
+            simulation_overrides+=("$1" "${2:?Missing simulation option value}")
+            shift 2
+            ;;
+        --physics-device=*|--physics_device=*|--physics-hz=*|--physics_hz=*|--physics-threads=*|--physics_threads=*|--render-quality=*|--render_quality=*)
+            simulation_overrides+=("$1")
+            shift
+            ;;
+        --profile|--no-profile|--direct-tensors|--direct_tensors|--no-direct-tensors|--no-direct_tensors)
+            simulation_overrides+=("$1")
             shift
             ;;
         -s|--no-simulation)
@@ -131,6 +146,12 @@ if [[ -z "$simulation_config" ]]; then
     fi
 fi
 simulation_config="$(realpath "$simulation_config")"
+run_dir="$(mktemp -d /tmp/as2-pegasus-launch.XXXXXX)"
+if ((${#simulation_overrides[@]})); then
+    python3 scripts/world_config.py --config "$simulation_config" \
+        "${simulation_overrides[@]}" --effective-world --output "$run_dir/world.yaml"
+    simulation_config="$run_dir/world.yaml"
+fi
 
 # Get configured drone names unless a subset was explicitly selected.
 configured_namespaces=$(python3 scripts/world_config.py --config "$simulation_config" --names)
@@ -160,7 +181,6 @@ if [[ "$video_relay" == "true" ]]; then
 fi
 
 # Generate each selected drone's PX4 routing before launching any process.
-run_dir="$(mktemp -d /tmp/as2-pegasus-launch.XXXXXX)"
 simulation_log="$run_dir/isaacsim.log"
 if [[ "$launch_simulation" == "true" ]]; then
     touch "$simulation_log"

@@ -64,7 +64,7 @@ class SceneTests(unittest.TestCase):
             with patch.object(scene, 'create_empty_world') as ground, \
                  patch.object(scene, 'create_clock') as clock:
                 drones, follow = scene.build_scene(MagicMock(), args)
-        simulation.SimulationManager.setup_simulation.assert_called_once_with(dt=1.0 / 250)
+        simulation.SimulationManager.setup_simulation.assert_called_once_with(dt=1.0 / 250, device='cuda')
         rendering.RenderingManager.set_dt.assert_called_once_with(1.0 / 50)
         carb.settings.get_settings.return_value.set_float.assert_called_once_with(
             '/persistent/simulation/minFrameRate', 50.0)
@@ -79,6 +79,13 @@ class SceneTests(unittest.TestCase):
         ground.assert_called_once()
         clock.assert_not_called()
         self.assertIsNone(follow)
+
+        # Device/rate overrides reach the real scene setup, not just parsing.
+        args.world['simulation'].update(physics_device='cpu', physics_hz=300)
+        simulation.SimulationManager.setup_simulation.reset_mock()
+        with patch.object(scene, 'create_empty_world'), patch.object(scene, 'create_clock'):
+            scene.build_scene(MagicMock(), args)
+        simulation.SimulationManager.setup_simulation.assert_called_once_with(dt=1.0 / 300, device='cpu')
 
         # Exercise actual config propagation into each PX4 backend, independently
         # of sensor/renderer availability.

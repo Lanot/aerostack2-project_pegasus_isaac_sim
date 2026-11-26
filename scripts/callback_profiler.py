@@ -45,7 +45,8 @@ class CallbackProfiler:
 def profiled_vehicle_class(base, profiler, name):
     """Wrap overrides before Vehicle.__init__ registers its bound callbacks."""
     methods = ('update', 'update_state', 'update_sensors', 'update_graphical_sensors',
-               'update_sim_state', 'apply_force', 'apply_torque', 'handle_propeller_visual')
+               'update_sim_state', 'apply_force', 'apply_torque', 'handle_propeller_visual',
+               'flush_direct_tensors')
     overrides = {method: profiler.wrap(f'{name}.{method}', getattr(base, method))
                  for method in methods if callable(getattr(base, method, None))}
     return type('Profiled' + base.__name__, (base,), overrides)
