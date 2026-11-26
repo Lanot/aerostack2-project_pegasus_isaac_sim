@@ -11,6 +11,7 @@ usage() {
     echo "      --video-relay: start ROS UDP relays for configured cameras (default: false)"
     echo "      --video-relay-host IP: QGC destination (default: 127.0.0.1)"
     echo "      --headless: launch Isaac Sim without its GUI"
+    echo "      --px4-env-file FILE: load PX4 tuning environment in the simulator pane"
     echo "      --physics-device cpu|cuda, --physics-hz HZ, --physics-threads N: override simulation YAML"
     echo "      --profile / --no-profile, --render-quality current|fast, --direct-tensors / --no-direct-tensors"
     echo "      -s, --no-simulation: do not launch Isaac Sim"
@@ -44,6 +45,7 @@ follow_logs="true"
 follow_camera=""
 follow_drone=""
 simulation_overrides=()
+px4_env_file=""
 
 # Parse command-line arguments.
 while (($#)); do
@@ -68,6 +70,18 @@ while (($#)); do
         --video-relay-host)
             video_relay_host="${2:?Missing QGC host}"
             shift 2
+            ;;
+        --px4-env-file|--px4_env_file)
+            px4_env_file="${2:?Missing PX4 environment file}"
+            shift 2
+            ;;
+        --px4-env-file=*|--px4_env_file=*)
+            px4_env_file="${1#*=}"
+            if [[ -z "$px4_env_file" ]]; then
+                echo "Missing PX4 environment file" >&2
+                exit 2
+            fi
+            shift
             ;;
         --headless)
             headless="true"
@@ -136,6 +150,22 @@ while (($#)); do
             ;;
     esac
 done
+
+# Validate before launching processes. Source inside the simulator pane so an
+# existing tmux server's environment cannot discard PX4 parameter overrides.
+if [[ -n "$px4_env_file" ]]; then
+    if [[ "$launch_simulation" != "true" ]]; then
+        echo "--px4-env-file requires launching the simulator; omit -s/--no-simulation." >&2
+        exit 2
+    fi
+    if [[ ! -f "$px4_env_file" || ! -r "$px4_env_file" ]]; then
+        echo "PX4 environment file is not a readable file: $px4_env_file" >&2
+        exit 2
+    fi
+    px4_env_file="$(realpath -- "$px4_env_file")"
+    bash -n -- "$px4_env_file"
+    echo "PX4 environment file: $px4_env_file"
+fi
 
 # Set the simulation world description config file.
 if [[ -z "$simulation_config" ]]; then
@@ -232,6 +262,7 @@ for index in "${!drone_namespaces[@]}"; do
         "drone_namespace=$namespace"
         "simulation_config_file=$simulation_config"
         "simulation_log_file=$simulation_log"
+        "px4_env_file=$px4_env_file"
         "platform_config_file=$run_dir/$namespace.yaml"
         "base_launch=$base_launch"
         "headless=$headless"

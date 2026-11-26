@@ -1,0 +1,12 @@
+Value	Mode	Behavior
+-1	Unassigned	No mode assigned to that switch slot.
+0	Manual	    On a multicopter, attitude-stabilized manual control; altitude and position require pilot control.
+1	Altitude	Pilot controls tilt and climb/descent. Centering sticks levels the drone and holds altitude; horizontal drift remains possible.
+2	Position	Pilot commands horizontal movement and climb/descent. Centering sticks brakes and holds position and altitude.
+3	Mission	    Executes a mission uploaded to PX4, such as QGC waypoints.
+4	Hold	    Automatically stops and hovers at the current position and altitude.
+5	Return	    Executes the configured return procedure toward home or another return destination.
+6	Acro	    Sticks command rotation rates. Centering them stops rotation but does not level the drone. Pilot controls thrust.
+7	Offboard	Follows external position, velocity, attitude or other supported commands from ROS 2/MAVLink.
+8	Stabilized	Pilot commands tilt and thrust. Centering roll/pitch levels the drone; altitude and position are not held.
+9	Position Slow	Position control with reduced movement limits for precise maneuvering.

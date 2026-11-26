@@ -576,3 +576,39 @@ image contents, calibration, timestamps, and topic rate after applying the
 change. The topic rate measured in wall time is roughly configured camera rate
 multiplied by RTF. GPU performance and native ROS delivery require validation in
 Isaac Sim; offline tests only cover configuration and acquisition calls.
+
+## PX4 tuning environment file
+
+Pass a Bash environment file to the AS2 launcher:
+
+```bash
+./launch_as2.bash -x --no-attach --config config/custom_world.yaml \
+  --px4-env-file config/px4.common.env
+```
+
+Example `config/px4/px4.common.env`:
+
+```bash
+# PX4 SITL startup reads PX4_PARAM_<parameter name>.
+PX4_PARAM_COM_OF_LOSS_T=15
+```
+
+The option accepts `--px4_env_file` as an alias, and both separate-value and
+`--px4-env-file=FILE` forms. Relative paths resolve against the project directory,
+matching `--config`. Files are checked for readability and Bash syntax before any
+processes launch. The file is a trusted Bash script: comments and `export`
+assignments work; ordinary assignments are exported automatically.
+
+The file is sourced by a wrapper inside the simulator's tmux pane (or generated
+GNOME terminal command), rather than relying on the tmux server's inherited
+environment. Existing tmux servers therefore receive the selected values too.
+The selected file overrides inherited variables of the same names. AS2 nodes
+and the DDS agent are not sourced through this wrapper. The simulator's PX4
+children inherit the values; all autolaunched drones share this tuning file,
+while the backend still assigns individual DDS namespaces. Verify parameters in
+QGC after startup because PX4's later startup commands can override some values.
+
+Omitting the option preserves existing launch behavior. It cannot be combined
+with `-s`/`--no-simulation`, and it does not configure externally launched PX4.
+This loads PX4 environment assignments, not ArduPilot `.parm` or QGC `.params`
+file formats. No firmware rebuild is required for tuning environment changes.

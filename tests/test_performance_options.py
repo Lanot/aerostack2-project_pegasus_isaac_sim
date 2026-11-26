@@ -53,12 +53,14 @@ def test_thread_zero_and_render_overrides():
 
 
 def test_full_as2_launcher_forwards_effective_world(tmp_path):
+    config = tmp_path / 'world.yaml'
+    config.write_text('drones: [{model_name: drone0}]\n')
     capture = tmp_path / 'launches.txt'
     binary = tmp_path / 'tmuxinator'
     binary.write_text('#!/usr/bin/env python3\nimport os,sys\nwith open(os.environ["CAPTURE"],"a") as f: f.write(" ".join(sys.argv[1:])+"\\n")\n')
     binary.chmod(0o755)
     env = dict(os.environ, PATH=str(tmp_path)+':'+os.environ['PATH'], CAPTURE=str(capture), TMUX='')
-    result = subprocess.run(['bash', 'launch_as2.bash', '-m', '--no-attach', '--no-log-follow',
+    result = subprocess.run(['bash', 'launch_as2.bash', '--config', str(config), '--no-attach', '--no-log-follow',
         '--physics_device', 'cpu', '--physics_hz=300', '--physics_threads', '0',
         '--render_quality', 'fast', '--profile', '--direct_tensors'],
         cwd=ROOT, env=env, text=True, capture_output=True, timeout=20)
