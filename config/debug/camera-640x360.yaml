@@ -1,0 +1,53 @@
+world_name: empty
+px4:
+  enabled: true
+  autolaunch: true
+  enable_lockstep: false
+  model: gazebo-classic_iris
+simulation:
+  physics_device: cuda
+  physics_threads: -1
+  render_quality: current
+  direct_tensors: false
+  physics_hz: 250
+  render_hz: 50
+  profile: false
+origin:
+  latitude: 40.4405287
+  longitude: -3.6898277
+  altitude: 100.0
+drones:
+- model_type: quadrotor_base
+  model_name: drone0
+  flight_time: 60
+  xyz:
+  - 0.0
+  - 0.0
+  - 0.3
+  payload:
+  - model_type: gps
+    model_name: gps
+  - model_type: gimbal_speed
+    model_name: gimbal
+    config:
+      frequency: 10
+      resolution: &id001
+      - 640
+      - 360
+    payload:
+      model_type: hd_camera
+      model_name: camera
+      config:
+        frequency: 10
+        resolution: *id001
+  instance: 0
+  rpy:
+  - 0.0
+  - 0.0
+  - 0.0
+config_file: /home/tolik/workspaces/aerostack2_ws/src/project_pegasus_isaac_sim/config/world.yaml
+ros2: true
+ros2_graphical_sensors: true
+follow_camera: false
+extensions: []
+extension_paths: []
